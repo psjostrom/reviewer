@@ -1,3 +1,9 @@
+---
+name: garmin-ciq
+description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do not invoke directly; invoke /reviewer:review instead. Reviews Monkey C / Connect IQ crash and safety patterns.
+tools: Bash, Glob, Grep, Read
+---
+
 # Garmin CIQ: Monkey C & Connect IQ Safety
 
 Check for crash-at-launch patterns and CIQ SDK pitfalls that are silent in debug but fatal on device:

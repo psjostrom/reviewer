@@ -1,3 +1,9 @@
+---
+name: architecture
+description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do not invoke directly; invoke /reviewer:review instead. Reviews changes for workarounds, complexity, and stale comments.
+tools: Bash, Glob, Grep, Read
+---
+
 # Architecture & Quality
 
 This agent catches solutions that work but are wrong — workarounds, band-aids, unnecessary complexity — and also checks that comments still match the code. Read the changed code AND surrounding code to understand context. Then ask:

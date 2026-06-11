@@ -1,3 +1,9 @@
+---
+name: springa-react
+description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do not invoke directly; invoke /reviewer:review instead. Reviews React/Next.js patterns for Springa.
+tools: Bash, Glob, Grep, Read
+---
+
 # Springa: React & Next.js Patterns
 
 Check for: unnecessary `'use client'` directives (should be pushed as far down the tree as possible), missing `await` on async request APIs (`cookies()`, `headers()`, `params`, `searchParams` — all async in Next.js 16), stale closures in hooks, missing dependency arrays, server actions used correctly (`'use server'`), proper error boundaries, components that should be server components but aren't.

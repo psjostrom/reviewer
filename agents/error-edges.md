@@ -1,3 +1,9 @@
+---
+name: error-edges
+description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do not invoke directly; invoke /reviewer:review instead. Reviews error handling and loading/undefined state.
+tools: Bash, Glob, Grep, Read
+---
+
 # Error & Edge Cases
 
 Look for error handling that will cause real problems IN PRACTICE — not hypothetical misuse. Check: empty catch blocks that swallow errors users need to see, missing error handling on operations that WILL fail (network, file I/O, parsing), fallback behavior that silently hides broken state, **missing loading/undefined state handling for async data**. Read how the code is actually called before flagging — if the caller already handles the error, or the input is always validated upstream, don't flag it.

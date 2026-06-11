@@ -1,3 +1,9 @@
+---
+name: strimma-medical
+description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do not invoke directly; invoke /reviewer:review instead. Reviews medical/CGM data integrity for Strimma.
+tools: Bash, Glob, Grep, Read
+---
+
 # Strimma: Medical Data Integrity
 
 This is a CGM app — wrong values can endanger lives. Check TWO dimensions:

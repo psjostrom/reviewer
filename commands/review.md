@@ -12,11 +12,13 @@ Review code changes, score every issue, and either fix locally or post as inline
 
 ## Step 0: Parse Arguments
 
-Parse `$ARGUMENTS` for flags:
-- If it contains `--opus`, set agent model to **opus** and remove the flag from the argument string.
-- Otherwise, agent model is **sonnet** (default).
+Parse `$ARGUMENTS` for flags (remove each recognized flag from the argument string):
+- If it contains `--opus`, set agent model to **opus**. Otherwise, agent model is **sonnet** (default).
+- If it contains `--deep`, force **Deep** review depth (full agent panel) in Step 4.
+- If it contains `--quick`, force **Quick** review depth (minimal panel) in Step 4.
+- `--deep` and `--quick` are mutually exclusive; if both are present, `--deep` wins.
 
-The remaining argument (after removing flags) is used in Step 1.
+The remaining argument (after removing all flags) is used in Step 1.
 
 ## Step 1: Determine Review Mode
 
@@ -60,9 +62,26 @@ Determine the project type from the basename of the git repository root (`basena
 - **Garmin CIQ** — basename contains `garmin`. Monkey C Connect IQ apps (SugarField, SugarGraph, SugarWave, StepField, NextStepField).
 - **Generic** — anything else. Run universal agents only.
 
+### Select review depth (right-size the panel to risk)
+
+The dominant cost of this command is the **number of agents** — each one independently re-reads the diff and source, so a 5-agent panel on a 200-line copy change is mostly wasted spend. Pick a depth from the Step 3 triage **before** dispatching, using the risk tiers and diff size already computed there.
+
+| Depth | When | Agents dispatched |
+| ----- | ---- | ----------------- |
+| **Deep** | Any **Critical-tier** file present, OR diff ≥ 400 lines changed, OR user passed `--deep` | Full panel: all universal agents + all matching domain agents |
+| **Standard** _(default)_ | No Critical-tier files and diff < 400 lines | Bug Hunter, Guidelines, Test Reviewer + **all matching domain agents**. **Skip** Architecture and Error & Edge Cases. |
+| **Quick** | Diff touches **only Low-tier** files (tests, docs, comments, lockfiles), OR user passed `--quick` | Bug Hunter + Guidelines only |
+
+Rules:
+
+- The agents carrying the most correctness and domain value — **Bug Hunter, Guidelines, Test Reviewer, and the domain agents** — survive every non-Quick depth. Only the two generalists (**Architecture**, **Error & Edge Cases**) are dropped at Standard depth; they yield mostly structural/polish findings that are acceptable to skip on a small, low-risk diff. Be aware this is a real coverage tradeoff: duplication, over-broad abstraction, and edge-state findings come from those two.
+- At **Standard** depth, skip **Test Reviewer** only when no source/logic files changed (diff is tests + docs + config only); otherwise it runs.
+- **Always state the chosen depth and a one-line reason**, and how to override — e.g. _"Standard depth (no critical files, 250 lines changed): running 4 agents, skipping Architecture and Error & Edge Cases. Re-run with `--deep` for the full panel."_ This keeps the coverage tradeoff visible so the user can escalate.
+- Size is a heuristic, not a rule. If the diff *looks* riskier than its size — touches medical/glucose math, financial logic, API contracts, coroutine/lifecycle, native CIQ code — bump to **Deep** even if no file was tiered Critical.
+
 ### Agent Dispatch
 
-**Launch ALL agents in parallel in a SINGLE response.** Each Agent call uses a `subagent_type` from the tables below; the subagent's instructions are loaded automatically from its file in this plugin. The `prompt` you pass to each agent should contain only the orchestration context:
+**Launch the agents for the selected depth in parallel in a SINGLE response.** Each Agent call uses a `subagent_type` from the tables below; the subagent's instructions are loaded automatically from its file in this plugin. The `prompt` you pass to each agent should contain only the orchestration context:
 - The diff
 - The file list with risk tiers from Step 3
 - The one-line diff summary
@@ -70,13 +89,13 @@ Determine the project type from the basename of the git repository root (`basena
 
 **Agent model:** Use the model selected in Step 0 (sonnet by default, opus if `--opus` was passed).
 
-**Checklist — verify all are dispatched:**
-- [ ] Agent 1 — Bug Hunter
-- [ ] Agent 2 — Guidelines Checker
-- [ ] Agent 3 — Error & Edge Cases
-- [ ] Agent 4 — Architecture & Quality
-- [ ] Agent 5 — Test Reviewer
-- [ ] Domain agents (if detected: S1/S2 for Strimma, P1/P2 for Springa, G1 for Garmin)
+**Checklist — verify the agents for the selected depth are dispatched:**
+- [ ] Agent 1 — Bug Hunter _(all depths)_
+- [ ] Agent 2 — Guidelines Checker _(all depths)_
+- [ ] Agent 3 — Error & Edge Cases _(Deep only)_
+- [ ] Agent 4 — Architecture & Quality _(Deep only)_
+- [ ] Agent 5 — Test Reviewer _(Deep + Standard-with-source)_
+- [ ] Domain agents _(Deep + Standard; skipped at Quick — if detected: S1/S2 for Strimma, P1/P2 for Springa, G1 for Garmin)_
 
 Each agent MUST return its findings as a structured list. For each issue found, include all of these on clearly labeled lines:
 - **Description:** what's wrong
@@ -92,7 +111,7 @@ If no issues are found, the agent must say "No issues found" — not return an e
 
 ---
 
-### Universal Agents (always run)
+### Universal Agents (subset by depth — see depth table above)
 
 | Agent | subagent_type |
 |-------|---------------|

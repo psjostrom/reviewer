@@ -1,3 +1,9 @@
+---
+name: strimma-coroutine
+description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do not invoke directly; invoke /reviewer:review instead. Reviews coroutine and lifecycle safety for Strimma.
+tools: Bash, Glob, Grep, Read
+---
+
 # Strimma: Coroutine & Lifecycle Safety
 
 Check for structured concurrency violations: Flow collected on wrong dispatcher, coroutine scope leaks (GlobalScope, unscoped launch), missing cancellation handling, collecting Flows in places that outlive the lifecycle owner, suspend functions called from non-suspend contexts. Check service lifecycle: does the foreground service handle stop/restart correctly? Are Room DB operations on the right dispatcher? Is SharedFlow/StateFlow replay configured correctly?

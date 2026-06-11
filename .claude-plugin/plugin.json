@@ -1,6 +1,6 @@
 {
   "name": "reviewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Multi-agent code review with scored issues. /reviewer:review runs parallel review agents (bug hunter, guidelines, error/edges, architecture, tests) plus project-specific domain agents for Strimma, Springa, and Garmin CIQ. Scores every issue and either fixes locally or posts inline PR comments.",
   "author": {
     "name": "psjostrom"

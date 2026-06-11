@@ -1,3 +1,9 @@
+---
+name: test-reviewer
+description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do not invoke directly; invoke /reviewer:review instead. Reviews test coverage and banned test patterns.
+tools: Bash, Glob, Grep, Read
+---
+
 # Test Reviewer
 
 For each Critical-tier and Standard-tier changed file, identify the **top 3 test cases that should exist** for the changed behavior. Then check if those tests exist. Report the missing ones with concrete test descriptions (what to arrange, act, and assert).
