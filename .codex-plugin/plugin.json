@@ -1,0 +1,31 @@
+{
+  "name": "reviewer",
+  "version": "1.1.0",
+  "description": "Risk-based parallel code review with scored, verified findings.",
+  "author": {
+    "name": "psjostrom",
+    "url": "https://github.com/psjostrom"
+  },
+  "repository": "https://github.com/psjostrom/agent-plugins",
+  "keywords": [
+    "code-review",
+    "review",
+    "subagents",
+    "pull-request"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Reviewer",
+    "shortDescription": "Risk-based parallel code review",
+    "longDescription": "Review pull requests or local changes with parallel specialist reviewers, deduplicated findings, calibrated scores, and verification of high-severity claims.",
+    "developerName": "psjostrom",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Use $review-pr to review the current pull request with parallel subagents."
+    ]
+  }
+}
