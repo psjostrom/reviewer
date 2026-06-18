@@ -1,4 +1,31 @@
-# Reviewer (`/reviewer:review`, alias `/r`)
+# Reviewer
+
+Multi-agent code review with scored, verified findings. The plugin supports Claude Code and Codex.
+
+## Codex
+
+Install this repository as a local marketplace:
+
+```sh
+codex plugin marketplace add /Users/psjostrom/code/agent-plugins
+codex plugin add reviewer@agent-plugins
+```
+
+Start a new Codex thread after installation so the skill list refreshes.
+
+Invoke the skill explicitly:
+
+```text
+Use $review-pr to review PR #6 with parallel subagents.
+Use $review-pr to review the current local changes with a quick review.
+Use $review-pr to review PR #6 deeply with parallel subagents.
+```
+
+The skill chooses Quick, Standard, or Deep depth from the diff risk and size. It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
+
+## Claude Code
+
+Use `/reviewer:review` or its `/r` alias.
 
 Multi-agent code review with scored issues. Reviews a PR or local diff; scores every finding; then fixes directly or posts inline PR comments. Auto-detects the project (Strimma, Springa, Garmin CIQ) and adds matching domain agents.
 
