@@ -40,7 +40,6 @@ REVIEWER_NAMES = {
 PLACEHOLDERS = (
     "[TODO:",
     "TBD",
-    "TODO",
     "implement later",
 )
 
