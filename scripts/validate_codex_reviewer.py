@@ -106,6 +106,7 @@ def validate_skill(errors: list[str]) -> None:
         require(text.startswith("---\n"), f"{skill_path}: missing YAML frontmatter", errors)
         require(re.search(r"^name:\s*review-pr\s*$", text, re.MULTILINE) is not None, f"{skill_path}: wrong name", errors)
         require("parallel" in text.lower() and "subagent" in text.lower(), f"{skill_path}: must require parallel subagents", errors)
+        require("fork_context: false" in text, f"{skill_path}: must require self-contained subagent threads", errors)
         require("Do not merge" in text, f"{skill_path}: must explicitly forbid merging", errors)
     if metadata_path.exists():
         text = metadata_path.read_text(encoding="utf-8")

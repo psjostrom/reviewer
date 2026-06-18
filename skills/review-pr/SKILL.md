@@ -114,7 +114,7 @@ Domain reviewers run at Standard and Deep, never Quick.
 
 Read `references/reviewer-contract.md` and every selected reviewer prompt before dispatch.
 
-Spawn one built-in Codex subagent per selected reviewer in one parallel batch. Use a read-oriented agent type when available. Each prompt must include:
+Spawn one built-in Codex subagent per selected reviewer in one parallel batch. Use self-contained child threads without full-history inheritance (`fork_context: false` when the tool exposes that field). A read-oriented agent type is preferred, but never combine an explicit agent type, model, or reasoning override with a full-history fork. Each prompt must include:
 
 1. the complete common reviewer contract;
 2. exactly one specialist reviewer prompt;
@@ -125,7 +125,7 @@ Spawn one built-in Codex subagent per selected reviewer in one parallel batch. U
 7. the relevant patch, or precise instructions for retrieving target-revision source read-only;
 8. a requirement to return only the structured findings contract.
 
-Do not give reviewers write tasks. Wait for every selected reviewer before synthesis. If one fails, retry that role once with a narrower prompt; if it still fails, disclose the missing coverage.
+Do not give reviewers write tasks. Wait for every selected reviewer before synthesis, then close completed reviewer threads. If one fails, retry that role once with a narrower prompt; if it still fails, disclose the missing coverage.
 
 ## 6. Synthesize and score
 
