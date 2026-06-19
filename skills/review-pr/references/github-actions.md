@@ -33,6 +33,53 @@ Prefer the connected GitHub app for PR metadata and thread reads. Use standalone
 6. Never probe GitHub with test comments.
 7. Submit the body-only summary review only after every selected inline comment succeeds.
 8. Use `COMMENT` for a non-clean self-review. Do not request changes on the author's own PR.
+9. Write each comment body to a temporary file. Build JSON with `jq --rawfile`; never interpolate a multiline body through shell substitution.
+10. Let `gh` parse its own response with `--jq '.id'`. Do not pipe GitHub response JSON to standalone `jq`, because diff hunks can contain raw control characters.
+11. Do not merge stderr into stdout when capturing an ID, and do not hide stderr; failure details must remain visible.
+12. Post each comment with a separate command. Do not use a shell loop or helper function that can obscure which comment failed.
+
+### Standalone inline-comment fallback
+
+Refresh the head SHA:
+
+```bash
+gh api "repos/<owner>/<repo>/pulls/<number>" --jq '.head.sha'
+```
+
+Write the body to `/tmp/reviewer-comment-<n>.txt`, then post one comment:
+
+```bash
+ID=$(
+  jq -n \
+    --arg commit "<head-sha>" \
+    --arg path "src/file.ts" \
+    --argjson line 45 \
+    --rawfile body /tmp/reviewer-comment-1.txt \
+    '{commit_id:$commit, path:$path, line:$line, side:"RIGHT", body:$body}' \
+  | gh api "repos/<owner>/<repo>/pulls/<number>/comments" \
+      --method POST \
+      --input - \
+      --jq '.id'
+) && test -n "$ID" && printf 'OK id=%s\n' "$ID"
+```
+
+For a multi-line range, include `start_line`, `start_side:"RIGHT"`, `line`, and `side:"RIGHT"`. If the command fails or returns no ID, stop immediately.
+
+After every inline comment succeeds, write the summary body to a file and submit it:
+
+```bash
+ID=$(
+  jq -n \
+    --arg commit "<head-sha>" \
+    --arg event "COMMENT" \
+    --rawfile body /tmp/reviewer-summary.txt \
+    '{commit_id:$commit, event:$event, body:$body}' \
+  | gh api "repos/<owner>/<repo>/pulls/<number>/reviews" \
+      --method POST \
+      --input - \
+      --jq '.id'
+) && test -n "$ID" && printf 'OK review id=%s\n' "$ID"
+```
 
 ### Comment body
 
