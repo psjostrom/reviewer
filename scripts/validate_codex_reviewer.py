@@ -74,6 +74,16 @@ def require(condition: bool, message: str, errors: list[str]) -> None:
         errors.append(message)
 
 
+def require_in_order(text: str, markers: tuple[str, ...], path: Path, label: str, errors: list[str]) -> None:
+    position = -1
+    for marker in markers:
+        next_position = text.find(marker, position + 1)
+        if next_position < 0:
+            errors.append(f"{path}: missing ordered {label} marker {marker!r}")
+            return
+        position = next_position
+
+
 def validate_manifest(errors: list[str]) -> None:
     path = PLUGIN_ROOT / ".codex-plugin" / "plugin.json"
     if not path.exists():
@@ -81,9 +91,12 @@ def validate_manifest(errors: list[str]) -> None:
     manifest = load_json(path, errors)
     require(manifest.get("name") == "reviewer", f"{path}: name must be reviewer", errors)
     require(manifest.get("skills") == "./skills/", f"{path}: skills must be ./skills/", errors)
-    capabilities = manifest.get("interface", {}).get("capabilities")
+    interface = manifest.get("interface")
+    require(isinstance(interface, dict), f"{path}: interface must be an object", errors)
+    capabilities = interface.get("capabilities") if isinstance(interface, dict) else None
+    capabilities_are_strings = isinstance(capabilities, list) and all(isinstance(value, str) for value in capabilities)
     require(
-        isinstance(capabilities, list) and {"Interactive", "Read", "Write"}.issubset(capabilities),
+        capabilities_are_strings and {"Interactive", "Read", "Write"}.issubset(set(capabilities)),
         f"{path}: interface capabilities must include Interactive, Read, and Write",
         errors,
     )
@@ -129,8 +142,33 @@ def validate_skill(errors: list[str]) -> None:
         require("parallel" in text.lower() and "subagent" in text.lower(), f"{skill_path}: must require parallel subagents", errors)
         require("fork_context: false" in text, f"{skill_path}: must require self-contained subagent threads", errors)
         require("Do not merge" in text, f"{skill_path}: must explicitly forbid merging", errors)
-        require("every `AGENTS.md`" in text, f"{skill_path}: must load the full guidance chain", errors)
-        require("Do not execute PR code" in text, f"{skill_path}: initial review must forbid executing PR code", errors)
+        require(
+            "from the directory containing this `SKILL.md`" in text,
+            f"{skill_path}: must define relative reference resolution",
+            errors,
+        )
+        require(
+            re.search(
+                r"For every changed file, read every `AGENTS\.md`.*Also read every `CLAUDE\.md`.*Apply guidance broad-to-narrow",
+                text,
+                re.DOTALL,
+            )
+            is not None,
+            f"{skill_path}: must load both complete guidance chains broad-to-narrow",
+            errors,
+        )
+        require_in_order(
+            text,
+            (
+                "## 6. Synthesize and score",
+                "Do not execute PR code during the review phase.",
+                "## 7. Stop at the decision gate",
+                "If the user selects an action",
+            ),
+            skill_path,
+            "review gate",
+            errors,
+        )
     if metadata_path.exists():
         text = metadata_path.read_text(encoding="utf-8")
         require(
@@ -188,15 +226,33 @@ def validate_references(errors: list[str]) -> None:
             require(marker in text, f"{scoring_path}: missing invariant {marker!r}", errors)
     if actions_path.exists():
         text = actions_path.read_text(encoding="utf-8")
-        for marker in (
-            "Never merge the pull request",
-            "commit_id",
-            "jq --rawfile",
-            "Stop on the first failed comment",
-            "Default the summary event to `COMMENT`",
-            "require explicit user authorization",
+        for pattern, label in (
+            (r"Never merge the pull request", "merge prohibition"),
+            (r"Do not resolve review threads unless the user explicitly asks", "thread-resolution authorization"),
+            (r"Default the summary event to `COMMENT`", "default COMMENT event"),
+            (r"Approving, requesting changes, and resolving threads are separate mutations that require explicit user authorization", "separate mutation authorization"),
+            (r"Use `APPROVE` only when the user explicitly asks", "approval authorization"),
+            (r"Use `REQUEST_CHANGES` only when the user explicitly asks", "request-changes authorization"),
+            (r"pass that exact SHA as `commit_id` in every inline-comment payload", "head SHA payload requirement"),
+            (r"\{commit_id:\$commit, path:\$path, line:\$line, side:\"RIGHT\", body:\$body\}", "single-line inline payload"),
+            (r"include `start_line`, `start_side:\"RIGHT\"`, `line`, and `side:\"RIGHT\"`", "multi-line inline payload"),
+            (r"jq --rawfile", "rawfile body handling"),
+            (r"Stop on the first failed comment", "failure stop"),
         ):
-            require(marker in text, f"{actions_path}: missing invariant {marker!r}", errors)
+            require(re.search(pattern, text) is not None, f"{actions_path}: missing invariant {label!r}", errors)
+        require_in_order(
+            text,
+            (
+                "Refresh the PR head SHA immediately before posting",
+                "Write the body to `/tmp/reviewer-comment-<n>.txt`",
+                "{commit_id:$commit, path:$path, line:$line, side:\"RIGHT\", body:$body}",
+                "After every inline comment succeeds",
+                "{commit_id:$commit, event:$event, body:$body}",
+            ),
+            actions_path,
+            "comment posting",
+            errors,
+        )
 
 
 def validate_placeholders(errors: list[str]) -> None:

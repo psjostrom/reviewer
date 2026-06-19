@@ -18,6 +18,8 @@ Interpret the user's prompt for:
 
 Invocation of this skill authorizes the parallel reviewer fan-out described below. If subagent tools are unavailable, disclose that the specialist panel cannot run and ask whether to continue as a single-agent review. Do not silently simulate multiple reviewers.
 
+Resolve every relative `references/...` path below from the directory containing this `SKILL.md`.
+
 ## 1. Resolve review mode
 
 Choose exactly one:
