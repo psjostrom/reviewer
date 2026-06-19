@@ -1,6 +1,6 @@
 {
   "name": "reviewer",
-  "version": "1.1.0+codex.20260618123613",
+  "version": "1.1.0+codex.20260619143948",
   "description": "Risk-based parallel code review with scored, verified findings.",
   "author": {
     "name": "psjostrom",
