@@ -79,5 +79,10 @@ Every review agent declares `tools: Bash, Glob, Grep, Read`. This prunes the ent
 
 ## Files
 
-- `commands/review.md` — the orchestrator (depth selection, dispatch, scoring, posting).
-- `agents/*.md` — the reviewer subagents (universal + per-project domain agents for Strimma, Springa, Garmin CIQ).
+- `.claude-plugin/plugin.json` — Claude Code plugin metadata.
+- `commands/review.md` — Claude orchestrator.
+- `agents/*.md` — Claude reviewer agents.
+- `.codex-plugin/plugin.json` — Codex plugin metadata.
+- `skills/review-pr/SKILL.md` — Codex orchestrator.
+- `skills/review-pr/references/` — Codex scoring, action safety, contract, and specialist prompts.
+- `scripts/validate_codex_reviewer.py` — deterministic Codex bundle validation.

@@ -39,11 +39,13 @@ The score is an internal prioritization aid. Never include it in GitHub comments
 
 Before assigning a score above 75, directly verify the claim against the target revision:
 
-- Compilation/API claim: inspect the actual definition, dependency version, generated type, or run the narrow compiler check.
+- Compilation/API claim: inspect the actual definition, dependency version, generated type, or existing CI result.
 - Race or lifecycle claim: trace a reachable execution ordering and existing guards.
 - Null/undefined claim: trace the successful-data path and all caller validation.
 - Repository-guidance claim: quote the exact applicable `AGENTS.md` or `CLAUDE.md` rule.
 - Security/data-loss/safety claim: identify the concrete input, operation, and user-visible impact.
+
+Do not execute PR code during initial review. If an executable compiler, test, build, or runtime check is required, leave the finding at 50 or below and state the exact verification needed. Such checks require separate user authorization and an isolated environment that cannot alter the reviewed checkout.
 
 Unverified claims remain at 50 or below.
 

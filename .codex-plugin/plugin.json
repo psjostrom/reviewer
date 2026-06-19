@@ -22,7 +22,8 @@
     "category": "Developer Tools",
     "capabilities": [
       "Interactive",
-      "Read"
+      "Read",
+      "Write"
     ],
     "defaultPrompt": [
       "Use $review-pr to review the current pull request with parallel subagents."

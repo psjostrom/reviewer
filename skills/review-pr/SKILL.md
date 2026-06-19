@@ -34,7 +34,7 @@ Remain read-only.
 
 ### Repository guidance
 
-Read the root `AGENTS.md` plus the closest applicable `AGENTS.md` for each changed file. Also read applicable `CLAUDE.md` files for migration compatibility. When they conflict, follow `AGENTS.md` for this Codex workflow.
+For every changed file, read every `AGENTS.md` in the directory chain from the repository root through the file's parent directory. Also read every `CLAUDE.md` in that same chain for migration compatibility. Apply guidance broad-to-narrow; nearer files override broader files. When `AGENTS.md` and `CLAUDE.md` conflict at the same scope, follow `AGENTS.md` for this Codex workflow.
 
 ### PR mode
 
@@ -131,7 +131,7 @@ Do not give reviewers write tasks. Wait for every selected reviewer before synth
 
 Read and follow `references/scoring.md`.
 
-Verify all claims that could score above 75 against target-revision source, applicable guidance, tests, or a narrow executable check. Do not let reviewer confidence substitute for evidence.
+Verify all claims that could score above 75 through read-only inspection of target-revision source, applicable guidance, dependency metadata, generated definitions, existing test code, or existing CI results. Do not execute PR code during the review phase. If direct proof requires a compiler, test, build, or other executable check, keep the issue at 50 or below and state the exact verification still needed. Run executable verification only after the user explicitly authorizes it in an isolated environment that cannot modify the reviewed checkout.
 
 ## 7. Stop at the decision gate
 

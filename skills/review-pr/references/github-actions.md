@@ -17,7 +17,7 @@ Load this file only after the user selects findings from the review report.
 4. Run proportionate tests, type checks, lint, and diff checks.
 5. Show the resulting diff and verification evidence.
 6. Commit or push only when the user already requested it or approves that separate action.
-7. Resolve an existing review thread only when its issue was actually fixed and verified.
+7. Do not resolve review threads unless the user explicitly asks for thread resolution after the fix is verified.
 
 ## Post review comments
 
@@ -25,14 +25,14 @@ Prefer the connected GitHub app for PR metadata and thread reads. Use standalone
 
 ### Hard rules
 
-1. Refresh the PR head SHA immediately before posting.
+1. Refresh the PR head SHA immediately before posting and pass that exact SHA as `commit_id` in every inline-comment payload.
 2. Post one selected inline comment at a time.
 3. Stop on the first failed comment. Do not submit the summary review after any inline failure.
 4. Verify each path and new-file line against the current PR patch.
 5. Use prose instead of a suggestion block when the replacement range is uncertain.
 6. Never probe GitHub with test comments.
 7. Submit the body-only summary review only after every selected inline comment succeeds.
-8. Use `COMMENT` for a non-clean self-review. Do not request changes on the author's own PR.
+8. Default the summary event to `COMMENT`. Approving, requesting changes, and resolving threads are separate mutations that require explicit user authorization.
 9. Write each comment body to a temporary file. Build JSON with `jq --rawfile`; never interpolate a multiline body through shell substitution.
 10. Let `gh` parse its own response with `--jq '.id'`. Do not pipe GitHub response JSON to standalone `jq`, because diff hunks can contain raw control characters.
 11. Do not merge stderr into stdout when capturing an ID, and do not hide stderr; failure details must remain visible.
@@ -85,4 +85,4 @@ ID=$(
 
 State the defect, impact, and concrete fix. Keep the body proportional. Do not mention scores.
 
-For a clean review, try `APPROVE` with `LGTM — no issues found.` When GitHub rejects self-approval, fall back to `COMMENT` with the exact same body.
+For a clean review, post `LGTM — no issues found.` as a `COMMENT` by default. Use `APPROVE` only when the user explicitly asks for approval. Use `REQUEST_CHANGES` only when the user explicitly asks for it and the platform permits it.

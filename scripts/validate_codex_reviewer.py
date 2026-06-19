@@ -37,6 +37,19 @@ REVIEWER_NAMES = {
     "test-reviewer",
 }
 
+REVIEWER_MARKERS = {
+    "architecture": ("workaround", "comments"),
+    "bug-hunter": ("wrong results", "Never claim"),
+    "error-edges": ("production-reachable", "Trace callers"),
+    "garmin-ciq": ("Connect IQ", "SDK"),
+    "guidelines": ("exact violated rule", "Do not invent"),
+    "springa-api": ("backward-incompatible", "Nightscout"),
+    "springa-react": ("Next.js", "Loading"),
+    "strimma-coroutine": ("process death", "DataStore"),
+    "strimma-medical": ("18.0182", "temporal correctness"),
+    "test-reviewer": ("Banned patterns", "network interceptors"),
+}
+
 PLACEHOLDERS = (
     "[TODO:",
     "TBD",
@@ -68,6 +81,12 @@ def validate_manifest(errors: list[str]) -> None:
     manifest = load_json(path, errors)
     require(manifest.get("name") == "reviewer", f"{path}: name must be reviewer", errors)
     require(manifest.get("skills") == "./skills/", f"{path}: skills must be ./skills/", errors)
+    capabilities = manifest.get("interface", {}).get("capabilities")
+    require(
+        isinstance(capabilities, list) and {"Interactive", "Read", "Write"}.issubset(capabilities),
+        f"{path}: interface capabilities must include Interactive, Read, and Write",
+        errors,
+    )
     for unsupported in ("hooks", "mcpServers", "apps"):
         require(unsupported not in manifest, f"{path}: unsupported unused field {unsupported}", errors)
 
@@ -81,7 +100,9 @@ def validate_marketplace(errors: list[str]) -> None:
     require(isinstance(entries, list), f"{MARKETPLACE_PATH}: plugins must be an array", errors)
     if not isinstance(entries, list):
         return
-    reviewer = next((entry for entry in entries if entry.get("name") == "reviewer"), None)
+    for index, entry in enumerate(entries):
+        require(isinstance(entry, dict), f"{MARKETPLACE_PATH}: plugins[{index}] must be an object", errors)
+    reviewer = next((entry for entry in entries if isinstance(entry, dict) and entry.get("name") == "reviewer"), None)
     require(reviewer is not None, f"{MARKETPLACE_PATH}: missing reviewer entry", errors)
     if not isinstance(reviewer, dict):
         return
@@ -108,6 +129,8 @@ def validate_skill(errors: list[str]) -> None:
         require("parallel" in text.lower() and "subagent" in text.lower(), f"{skill_path}: must require parallel subagents", errors)
         require("fork_context: false" in text, f"{skill_path}: must require self-contained subagent threads", errors)
         require("Do not merge" in text, f"{skill_path}: must explicitly forbid merging", errors)
+        require("every `AGENTS.md`" in text, f"{skill_path}: must load the full guidance chain", errors)
+        require("Do not execute PR code" in text, f"{skill_path}: initial review must forbid executing PR code", errors)
     if metadata_path.exists():
         text = metadata_path.read_text(encoding="utf-8")
         require(
@@ -128,6 +151,7 @@ def validate_reviewers(errors: list[str]) -> None:
     extra = sorted(files.keys() - REVIEWER_NAMES)
     require(not missing, f"{reviewers_dir}: missing reviewers: {', '.join(missing)}", errors)
     require(not extra, f"{reviewers_dir}: unexpected reviewers: {', '.join(extra)}", errors)
+    normalized_bodies: dict[str, str] = {}
     for name, path in sorted(files.items()):
         text = path.read_text(encoding="utf-8")
         require("read-only" in text.lower(), f"{path}: must state read-only scope", errors)
@@ -137,6 +161,42 @@ def validate_reviewers(errors: list[str]) -> None:
             f"{path}: must reference the common contract or define the empty result",
             errors,
         )
+        for marker in REVIEWER_MARKERS.get(name, ()):
+            require(marker in text, f"{path}: missing role-specific marker {marker!r}", errors)
+        normalized = re.sub(r"\s+", " ", text).strip().lower()
+        duplicate = next((other for other, body in normalized_bodies.items() if body == normalized), None)
+        require(duplicate is None, f"{path}: duplicates reviewer prompt {duplicate}", errors)
+        normalized_bodies[name] = normalized
+
+
+def validate_references(errors: list[str]) -> None:
+    contract_path = SKILL_ROOT / "references" / "reviewer-contract.md"
+    scoring_path = SKILL_ROOT / "references" / "scoring.md"
+    actions_path = SKILL_ROOT / "references" / "github-actions.md"
+    if contract_path.exists():
+        text = contract_path.read_text(encoding="utf-8")
+        for marker in ("Work read-only", "No issues found", "Evidence standard", "Do not return compliments"):
+            require(marker in text, f"{contract_path}: missing invariant {marker!r}", errors)
+    if scoring_path.exists():
+        text = scoring_path.read_text(encoding="utf-8")
+        for marker in (
+            "Mandatory verification above 75",
+            "Do not execute PR code during initial review",
+            "Unverified claims remain at 50 or below",
+            "Never include it in GitHub comments",
+        ):
+            require(marker in text, f"{scoring_path}: missing invariant {marker!r}", errors)
+    if actions_path.exists():
+        text = actions_path.read_text(encoding="utf-8")
+        for marker in (
+            "Never merge the pull request",
+            "commit_id",
+            "jq --rawfile",
+            "Stop on the first failed comment",
+            "Default the summary event to `COMMENT`",
+            "require explicit user authorization",
+        ):
+            require(marker in text, f"{actions_path}: missing invariant {marker!r}", errors)
 
 
 def validate_placeholders(errors: list[str]) -> None:
@@ -160,6 +220,7 @@ def main() -> int:
     validate_marketplace(errors)
     validate_skill(errors)
     validate_reviewers(errors)
+    validate_references(errors)
     validate_placeholders(errors)
 
     if errors:
