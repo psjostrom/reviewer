@@ -11,7 +11,8 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PLUGIN_ROOT.parents[1]
-SKILL_ROOT = PLUGIN_ROOT / "skills" / "review-pr"
+SKILL_ROOT = PLUGIN_ROOT / "skills" / "parallel-review"
+LEGACY_SKILL_ROOT = PLUGIN_ROOT / "skills" / "review-pr"
 MARKETPLACE_PATH = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
 
 REQUIRED_PATHS = (
@@ -100,6 +101,19 @@ def validate_manifest(errors: list[str]) -> None:
         f"{path}: interface capabilities must include Interactive, Read, and Write",
         errors,
     )
+    default_prompt = interface.get("defaultPrompt") if isinstance(interface, dict) else None
+    require(
+        isinstance(default_prompt, list)
+        and all(isinstance(value, str) for value in default_prompt)
+        and any("$parallel-review" in value for value in default_prompt),
+        f"{path}: defaultPrompt must mention $parallel-review",
+        errors,
+    )
+    require(
+        not isinstance(default_prompt, list) or all("$review-pr" not in str(value) for value in default_prompt),
+        f"{path}: defaultPrompt must not mention legacy $review-pr",
+        errors,
+    )
     for unsupported in ("hooks", "mcpServers", "apps"):
         require(unsupported not in manifest, f"{path}: unsupported unused field {unsupported}", errors)
 
@@ -138,7 +152,8 @@ def validate_skill(errors: list[str]) -> None:
     if skill_path.exists():
         text = skill_path.read_text(encoding="utf-8")
         require(text.startswith("---\n"), f"{skill_path}: missing YAML frontmatter", errors)
-        require(re.search(r"^name:\s*review-pr\s*$", text, re.MULTILINE) is not None, f"{skill_path}: wrong name", errors)
+        require(re.search(r"^name:\s*parallel-review\s*$", text, re.MULTILINE) is not None, f"{skill_path}: wrong name", errors)
+        require("# Parallel Code Review" in text, f"{skill_path}: wrong title", errors)
         require("parallel" in text.lower() and "subagent" in text.lower(), f"{skill_path}: must require parallel subagents", errors)
         require("fork_context: false" in text, f"{skill_path}: must require self-contained subagent threads", errors)
         require("Do not merge" in text, f"{skill_path}: must explicitly forbid merging", errors)
@@ -157,12 +172,21 @@ def validate_skill(errors: list[str]) -> None:
             f"{skill_path}: must load both complete guidance chains broad-to-narrow",
             errors,
         )
+        for marker in (
+            "repository-relative path filters",
+            "Resolve each path from the repository root",
+            "Reject any path that resolves outside the repository",
+            "Filter the changed-file list and patch",
+            "If no changed files match the path filters",
+            "Findings must identify a defect in scoped changed code",
+        ):
+            require(marker in text, f"{skill_path}: missing path-scope invariant {marker!r}", errors)
         require_in_order(
             text,
             (
-                "## 6. Synthesize and score",
+                "## 7. Synthesize and score",
                 "Do not execute PR code during the review phase.",
-                "## 7. Stop at the decision gate",
+                "## 8. Stop at the decision gate",
                 "If the user selects an action",
             ),
             skill_path,
@@ -172,11 +196,17 @@ def validate_skill(errors: list[str]) -> None:
     if metadata_path.exists():
         text = metadata_path.read_text(encoding="utf-8")
         require(
+            re.search(r'^\s*display_name:\s*"Parallel Code Review"\s*$', text, re.MULTILINE) is not None,
+            f"{metadata_path}: display name must be Parallel Code Review",
+            errors,
+        )
+        require(
             re.search(r"^\s*allow_implicit_invocation:\s*false\s*$", text, re.MULTILINE) is not None,
             f"{metadata_path}: implicit invocation must be disabled",
             errors,
         )
-        require("$review-pr" in text, f"{metadata_path}: default prompt must mention $review-pr", errors)
+        require("$parallel-review" in text, f"{metadata_path}: default prompt must mention $parallel-review", errors)
+        require("$review-pr" not in text, f"{metadata_path}: must not mention legacy $review-pr", errors)
 
 
 def validate_reviewers(errors: list[str]) -> None:
@@ -270,6 +300,7 @@ def validate_placeholders(errors: list[str]) -> None:
 
 def main() -> int:
     errors: list[str] = []
+    require(not LEGACY_SKILL_ROOT.exists(), f"{LEGACY_SKILL_ROOT}: legacy skill directory must be removed", errors)
     for path in REQUIRED_PATHS:
         require(path.exists(), f"{path}: required path is missing", errors)
     validate_manifest(errors)

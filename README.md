@@ -16,12 +16,13 @@ Start a new Codex thread after installation so the skill list refreshes.
 Invoke the skill explicitly:
 
 ```text
-Use $review-pr to review PR #6 with parallel subagents.
-Use $review-pr to review the current local changes with a quick review.
-Use $review-pr to review PR #6 deeply with parallel subagents.
+Use $parallel-review to review PR #6 with parallel subagents.
+Use $parallel-review to review the current local changes with a quick review.
+Use $parallel-review to review local changes under src/auth.
+Use $parallel-review to review PR #6 deeply, limited to apps/web and packages/api.
 ```
 
-The skill chooses Quick, Standard, or Deep depth from the diff risk and size. It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
+The skill reviews PRs, branch comparisons, staged/unstaged/untracked local changes, or those targets restricted to repository-relative files and directories. It chooses Quick, Standard, or Deep depth from the scoped diff risk and size. It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
 
 ## Claude Code
 
@@ -83,6 +84,6 @@ Every review agent declares `tools: Bash, Glob, Grep, Read`. This prunes the ent
 - `commands/review.md` — Claude orchestrator.
 - `agents/*.md` — Claude reviewer agents.
 - `.codex-plugin/plugin.json` — Codex plugin metadata.
-- `skills/review-pr/SKILL.md` — Codex orchestrator.
-- `skills/review-pr/references/` — Codex scoring, action safety, contract, and specialist prompts.
+- `skills/parallel-review/SKILL.md` — Codex orchestrator.
+- `skills/parallel-review/references/` — Codex scoring, action safety, contract, and specialist prompts.
 - `scripts/validate_codex_reviewer.py` — deterministic Codex bundle validation.

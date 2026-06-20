@@ -1,0 +1,6 @@
+interface:
+  display_name: "Parallel Code Review"
+  short_description: "Risk-based parallel review of PRs or local changes"
+  default_prompt: "Use $parallel-review to review the current changes with parallel subagents."
+policy:
+  allow_implicit_invocation: false

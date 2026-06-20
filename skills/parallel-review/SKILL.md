@@ -1,9 +1,9 @@
 ---
-name: review-pr
-description: Use when reviewing a pull request, branch diff, staged changes, unstaged changes, or untracked code before merge, especially when the user wants parallel specialist reviewers, scored findings, or GitHub review comments.
+name: parallel-review
+description: Use when reviewing a pull request, branch diff, repository path, staged changes, unstaged changes, or untracked code before merge, especially when parallel specialist reviewers or scored findings are wanted.
 ---
 
-# Review Pull Request
+# Parallel Code Review
 
 Run a risk-based code review with a right-sized panel of parallel specialist subagents. Keep review read-only until the user chooses findings to fix or post.
 
@@ -12,8 +12,10 @@ Run a risk-based code review with a right-sized panel of parallel specialist sub
 Interpret the user's prompt for:
 
 - PR number or URL;
+- branch or base comparison;
 - `quick`, `standard`, or `deep` depth override;
 - local/current changes when no PR is named;
+- one or more optional repository-relative path filters;
 - an explicit instruction to stop after reporting.
 
 Invocation of this skill authorizes the parallel reviewer fan-out described below. If subagent tools are unavailable, disclose that the specialist panel cannot run and ask whether to continue as a single-agent review. Do not silently simulate multiple reviewers.
@@ -25,12 +27,25 @@ Resolve every relative `references/...` path below from the directory containing
 Choose exactly one:
 
 - **PR:** A PR number or URL was supplied.
+- **BRANCH:** A branch or base comparison was supplied.
 - **LOCAL:** No PR was supplied and tracked or untracked changes exist.
 - **CURRENT PR:** The working tree is clean and the current branch has an open PR.
 
 For current-branch discovery, use local `git` and `gh pr view`. If no target exists, report that there is nothing to review and stop.
 
-## 2. Gather exact context
+## 2. Resolve optional path scope
+
+Treat user-supplied files and directories as repository-relative path filters.
+
+1. Resolve each path from the repository root.
+2. Reject absolute paths. Reject any path that resolves outside the repository.
+3. Normalize duplicate and nested filters without changing their meaning.
+4. Filter the changed-file list and patch to matching changed paths before risk triage or reviewer dispatch.
+5. If no changed files match the path filters, report that there is nothing in scope and stop.
+
+Path filters restrict review targets; they do not make unchanged files reviewable. Reviewers may inspect directly related source outside the path scope as read-only evidence. Findings must identify a defect in scoped changed code.
+
+## 3. Gather exact context
 
 Remain read-only.
 
@@ -53,6 +68,12 @@ Capture:
 
 Never read a local file as PR-head source unless the local `HEAD` equals the PR head SHA. Otherwise inspect the target revision through GitHub or `git show` when that commit is locally available.
 
+After gathering PR metadata and patches, apply any path filters before calculating changed-file counts, risk tiers, or line totals.
+
+### Branch mode
+
+Resolve the requested branch and comparison base without checking either out. Use `git diff <base>...<branch>` and `git diff --stat <base>...<branch>`, adding `-- <path filters>` when filters were supplied. Stop if either revision is ambiguous or unavailable.
+
 ### Local mode
 
 Gather tracked staged and unstaged changes without changing staging:
@@ -63,9 +84,11 @@ git diff --stat HEAD
 git ls-files --others --exclude-standard
 ```
 
+When path filters were supplied, add `-- <path filters>` to each command.
+
 Read untracked files directly with bounded reads and include them in the changed-file list. Never use `git add -N`.
 
-## 3. Triage risk
+## 4. Triage risk
 
 Write a one-line summary of what the change does. Assign every changed file:
 
@@ -79,7 +102,7 @@ Count changed lines from the patch.
 
 For diffs above 1,500 lines, announce that reviewers will focus on Critical and Standard files. Only Guidelines and role-specific test checks inspect Low-tier files.
 
-## 4. Select depth and panel
+## 5. Select depth and panel
 
 User overrides win. Otherwise:
 
@@ -112,7 +135,7 @@ Detect from repository name and changed code:
 
 Domain reviewers run at Standard and Deep, never Quick.
 
-## 5. Dispatch parallel reviewers
+## 6. Dispatch parallel reviewers
 
 Read `references/reviewer-contract.md` and every selected reviewer prompt before dispatch.
 
@@ -129,13 +152,13 @@ Spawn one built-in Codex subagent per selected reviewer in one parallel batch. U
 
 Do not give reviewers write tasks. Wait for every selected reviewer before synthesis, then close completed reviewer threads. If one fails, retry that role once with a narrower prompt; if it still fails, disclose the missing coverage.
 
-## 6. Synthesize and score
+## 7. Synthesize and score
 
 Read and follow `references/scoring.md`.
 
 Verify all claims that could score above 75 through read-only inspection of target-revision source, applicable guidance, dependency metadata, generated definitions, existing test code, or existing CI results. Do not execute PR code during the review phase. If direct proof requires a compiler, test, build, or other executable check, keep the issue at 50 or below and state the exact verification still needed. Run executable verification only after the user explicitly authorizes it in an isolated environment that cannot modify the reviewed checkout.
 
-## 7. Stop at the decision gate
+## 8. Stop at the decision gate
 
 After reporting, ask which numbered findings to address.
 
