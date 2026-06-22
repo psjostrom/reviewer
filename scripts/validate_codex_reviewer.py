@@ -89,6 +89,32 @@ def require_in_order(text: str, markers: tuple[str, ...], path: Path, label: str
         position = next_position
 
 
+def validate_domain_reviewer_wiring(text: str, skill_path: Path, errors: list[str]) -> None:
+    domain_heading = "### Domain reviewers"
+    dispatch_heading = "## 6. Dispatch parallel reviewers"
+    domain_start = text.find(domain_heading)
+    dispatch_start = text.find(dispatch_heading, domain_start + len(domain_heading))
+    require(domain_start >= 0, f"{skill_path}: missing Domain reviewers section", errors)
+    require(dispatch_start > domain_start, f"{skill_path}: Domain reviewers section must precede dispatch", errors)
+    if domain_start < 0 or dispatch_start <= domain_start:
+        return
+
+    domain_section = text[domain_start:dispatch_start]
+    normalized_domain_section = re.sub(r"\s+", " ", domain_section)
+    for marker in (
+        "Detect Frontload only when the repository name is `frontload` or a root package manifest identifies the project as `frontload`.",
+        "- Frontload: `frontload-core.md`, `frontload-integration.md`",
+        "Domain reviewers run at Standard and Deep, never Quick.",
+    ):
+        require(marker in normalized_domain_section, f"{skill_path}: missing active domain reviewer invariant {marker!r}", errors)
+
+    for marker in (
+        "| Standard | No Critical files and fewer than 400 changed lines | Bug Hunter, Guidelines, Test Reviewer when source changed, all matching domain reviewers |",
+        "| Deep | Any Critical file or at least 400 changed lines | All universal reviewers and all matching domain reviewers |",
+    ):
+        require(marker in text, f"{skill_path}: missing domain panel wiring {marker!r}", errors)
+
+
 def validate_manifest(errors: list[str]) -> None:
     path = PLUGIN_ROOT / ".codex-plugin" / "plugin.json"
     if not path.exists():
@@ -185,11 +211,7 @@ def validate_skill(errors: list[str]) -> None:
             "Findings must identify a defect in scoped changed code",
         ):
             require(marker in text, f"{skill_path}: missing path-scope invariant {marker!r}", errors)
-        for marker in (
-            "Frontload: `frontload-core.md`, `frontload-integration.md`",
-            "Domain reviewers run at Standard and Deep, never Quick.",
-        ):
-            require(marker in text, f"{skill_path}: missing domain reviewer invariant {marker!r}", errors)
+        validate_domain_reviewer_wiring(text, skill_path, errors)
         require_in_order(
             text,
             (

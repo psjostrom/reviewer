@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import importlib.util
+import unittest
+from pathlib import Path
+
+
+SCRIPT_PATH = Path(__file__).with_name("validate_codex_reviewer.py")
+SPEC = importlib.util.spec_from_file_location("validate_codex_reviewer", SCRIPT_PATH)
+assert SPEC is not None and SPEC.loader is not None
+VALIDATOR = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(VALIDATOR)
+
+
+class DomainReviewerWiringTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.skill_path = VALIDATOR.SKILL_ROOT / "SKILL.md"
+        self.skill_text = self.skill_path.read_text(encoding="utf-8")
+
+    def validate(self, text: str) -> list[str]:
+        errors: list[str] = []
+        VALIDATOR.validate_domain_reviewer_wiring(text, self.skill_path, errors)
+        return errors
+
+    def test_accepts_active_frontload_mapping_and_panel_wiring(self) -> None:
+        self.assertEqual(self.validate(self.skill_text), [])
+
+    def test_rejects_frontload_mapping_outside_domain_section(self) -> None:
+        mapping = "- Frontload: `frontload-core.md`, `frontload-integration.md`"
+        text = self.skill_text.replace(f"{mapping}\n", "")
+        text = f"{text}\n<!-- stale documentation: {mapping} -->\n"
+
+        self.assertTrue(self.validate(text))
+
+    def test_rejects_standard_panel_without_matching_domain_reviewers(self) -> None:
+        text = self.skill_text.replace(
+            "Test Reviewer when source changed, all matching domain reviewers",
+            "Test Reviewer when source changed",
+        )
+
+        self.assertTrue(self.validate(text))
+
+    def test_rejects_ambiguous_changed_code_detection(self) -> None:
+        text = self.skill_text.replace(
+            "Detect Frontload only when the repository name is `frontload` or a root package\n"
+            "manifest identifies the project as `frontload`.",
+            "Detect from repository name and changed code:",
+        )
+
+        self.assertTrue(self.validate(text))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -126,7 +126,11 @@ Always state the selected depth, why, the panel, and how the user can override i
 
 ### Domain reviewers
 
-Detect from repository name and changed code:
+Detect domain reviewers from repository identity and project manifests, not
+arbitrary changed-text mentions.
+
+Detect Frontload only when the repository name is `frontload` or a root package
+manifest identifies the project as `frontload`.
 
 - Strimma: `strimma-coroutine.md`, `strimma-medical.md`
 - Springa: `springa-api.md`, `springa-react.md`
