@@ -131,6 +131,7 @@ Detect from repository name and changed code:
 - Strimma: `strimma-coroutine.md`, `strimma-medical.md`
 - Springa: `springa-api.md`, `springa-react.md`
 - Garmin/Connect IQ: `garmin-ciq.md`
+- Frontload: `frontload-core.md`, `frontload-integration.md`
 - Generic: no domain reviewer
 
 Domain reviewers run at Standard and Deep, never Quick.

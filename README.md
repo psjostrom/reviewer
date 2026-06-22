@@ -24,6 +24,10 @@ Use $parallel-review to review PR #6 deeply, limited to apps/web and packages/ap
 
 The skill reviews PRs, branch comparisons, staged/unstaged/untracked local changes, or those targets restricted to repository-relative files and directories. It chooses Quick, Standard, or Deep depth from the scoped diff risk and size. It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
 
+For Standard and Deep reviews, Codex auto-detects Strimma, Springa, Garmin
+Connect IQ, and Frontload repositories and adds the matching domain reviewers.
+Frontload reviews add separate core-correctness and integration-safety agents.
+
 ## Claude Code
 
 Use `/reviewer:review` or its `/r` alias.

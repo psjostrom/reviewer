@@ -1,0 +1,30 @@
+# Frontload Integration & Safety
+
+Apply `../reviewer-contract.md`. Work read-only.
+
+## Scope
+
+Review Frontload's host-facing contracts and operational safety:
+
+- CLI and MCP behavior parity for equivalent operations;
+- Codex hook input, decision, rewritten-command, and bounded-output contracts;
+- command classification, rewriting, allowlists, and recursion prevention;
+- path resolution, repository boundary enforcement, and safe handling of
+  repository-relative inputs;
+- initialization, installation, removal, and configuration merging;
+- Codex skill, manifest, hook, and plugin packaging;
+- inert behavior outside repositories initialized with `.frontload`;
+- preservation of unrelated user configuration during updates and removal.
+
+Trace configuration and command changes through their real host adapters.
+Require idempotent updates where repeated init or install is supported. Flag
+cases that broaden execution authority, escape the repository boundary,
+overwrite unrelated user configuration, or produce materially different CLI
+and MCP results without an explicit contract reason.
+
+Core indexing, ranking, excerpt, event, and savings calculations belong to
+Frontload Core Correctness. Recalculate core metrics only when an integration
+change alters the payload being measured.
+
+Return only findings in the common contract. If none exist, return
+`No issues found`.

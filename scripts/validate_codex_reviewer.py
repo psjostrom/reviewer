@@ -29,6 +29,8 @@ REVIEWER_NAMES = {
     "architecture",
     "bug-hunter",
     "error-edges",
+    "frontload-core",
+    "frontload-integration",
     "garmin-ciq",
     "guidelines",
     "springa-api",
@@ -42,6 +44,8 @@ REVIEWER_MARKERS = {
     "architecture": ("workaround", "comments"),
     "bug-hunter": ("wrong results", "Never claim"),
     "error-edges": ("production-reachable", "Trace callers"),
+    "frontload-core": ("model-visible payload", "index freshness", "savings"),
+    "frontload-integration": ("CLI and MCP", "repository boundary", "unrelated user configuration"),
     "garmin-ciq": ("Connect IQ", "SDK"),
     "guidelines": ("exact violated rule", "Do not invent"),
     "springa-api": ("backward-incompatible", "Nightscout"),
@@ -181,6 +185,11 @@ def validate_skill(errors: list[str]) -> None:
             "Findings must identify a defect in scoped changed code",
         ):
             require(marker in text, f"{skill_path}: missing path-scope invariant {marker!r}", errors)
+        for marker in (
+            "Frontload: `frontload-core.md`, `frontload-integration.md`",
+            "Domain reviewers run at Standard and Deep, never Quick.",
+        ):
+            require(marker in text, f"{skill_path}: missing domain reviewer invariant {marker!r}", errors)
         require_in_order(
             text,
             (
