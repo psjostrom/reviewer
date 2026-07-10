@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Audits changes against explicit CLAUDE.md / AGENTS.md rules.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /parallel-review instead. Audits changes against explicit CLAUDE.md / AGENTS.md rules.
 mode: subagent
 hidden: true
 permission:

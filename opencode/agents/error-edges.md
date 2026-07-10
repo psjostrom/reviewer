@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews error handling and loading/undefined state.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /parallel-review instead. Reviews error handling and loading/undefined state.
 mode: subagent
 hidden: true
 permission:

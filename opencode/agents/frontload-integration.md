@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews Frontload integration contracts and operational safety.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /parallel-review instead. Reviews Frontload integration contracts and operational safety.
 mode: subagent
 hidden: true
 permission:

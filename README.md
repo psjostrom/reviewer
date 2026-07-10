@@ -29,13 +29,13 @@ The script symlinks files from `plugins/reviewer/opencode/` into the opencode di
 After installing, use the command:
 
 ```text
-/review 123      # review PR #123
-/review          # review current local diff (or the current branch's open PR)
-/review --deep   # force the full agent panel
-/review --quick  # force the minimal panel
+/parallel-review 123      # review PR #123
+/parallel-review          # review current local diff (or the current branch's open PR)
+/parallel-review --deep   # force the full agent panel
+/parallel-review --quick  # force the minimal panel
 ```
 
-The `/review` command runs on a custom `reviewer` primary agent (defined in `opencode/agents/reviewer.md`) that dispatches the review subagents via the Task tool, scores findings, and either fixes locally or posts inline PR comments via the `gh` CLI.
+The `/parallel-review` command runs on a custom `reviewer` primary agent (defined in `opencode/agents/reviewer.md`) that dispatches the review subagents via the Task tool, scores findings, and either fixes locally or posts inline PR comments via the `gh` CLI.
 
 For Standard and Deep reviews, opencode auto-detects Strimma, Springa, Garmin
 Connect IQ, Frontload, and agent-plugins repositories and adds the matching
@@ -59,7 +59,7 @@ The `--opus` flag is accepted but has no effect in opencode — configure models
 Install this repository as a local marketplace:
 
 ```sh
-codex plugin marketplace add /Users/psjostrom/code/agent-plugins
+codex plugin marketplace add .
 codex plugin add reviewer@agent-plugins
 ```
 

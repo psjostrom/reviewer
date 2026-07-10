@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews Monkey C / Connect IQ crash and safety patterns.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /parallel-review instead. Reviews Monkey C / Connect IQ crash and safety patterns.
 mode: subagent
 hidden: true
 permission:
