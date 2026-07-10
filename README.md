@@ -1,6 +1,54 @@
 # Reviewer
 
-Multi-agent code review with scored, verified findings. The plugin supports Claude Code and Codex.
+Multi-agent code review with scored, verified findings. The plugin supports Claude Code, Codex, and opencode.
+
+## opencode
+
+Run the install script from the repo root:
+
+```sh
+./install-opencode.sh install reviewer          # global (~/.config/opencode/)
+./install-opencode.sh install reviewer --project # per-project (.opencode/)
+```
+
+Uninstall:
+
+```sh
+./install-opencode.sh uninstall reviewer
+./install-opencode.sh uninstall reviewer --project
+```
+
+List available plugins:
+
+```sh
+./install-opencode.sh list
+```
+
+The script symlinks files from `plugins/reviewer/opencode/` into the opencode discovery directories, so edits to the source files are immediately live.
+
+After installing, use the command:
+
+```text
+/review 123      # review PR #123
+/review          # review current local diff (or the current branch's open PR)
+/review --deep   # force the full agent panel
+/review --quick  # force the minimal panel
+```
+
+The `/review` command runs on a custom `reviewer` primary agent (defined in `opencode/agents/reviewer.md`) that dispatches the review subagents via the Task tool, scores findings, and either fixes locally or posts inline PR comments via the `gh` CLI.
+
+**Model selection:** opencode's Task tool doesn't support per-call model overrides. To run reviewers on a specific model, set the `model` field on each review agent in your `opencode.json`:
+
+```json
+{
+  "agent": {
+    "bug-hunter": { "model": "anthropic/claude-opus-4-20250514" },
+    "guidelines": { "model": "anthropic/claude-opus-4-20250514" }
+  }
+}
+```
+
+The `--opus` flag is accepted but has no effect in opencode — configure models in `opencode.json` instead.
 
 ## Codex
 
@@ -91,3 +139,6 @@ Every review agent declares `tools: Bash, Glob, Grep, Read`. This prunes the ent
 - `skills/parallel-review/SKILL.md` — Codex orchestrator.
 - `skills/parallel-review/references/` — Codex scoring, action safety, contract, and specialist prompts.
 - `scripts/validate_codex_reviewer.py` — deterministic Codex bundle validation.
+- `opencode/agents/reviewer.md` — opencode orchestrator (primary agent).
+- `opencode/agents/*.md` — opencode reviewer subagents.
+- `opencode/commands/review.md` — opencode orchestrator command.
