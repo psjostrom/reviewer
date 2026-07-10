@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /review orchestrator. Do not invoke directly; invoke /review instead. Reviews agent plugin surfaces, packaging, and cross-agent parity.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews agent plugin surfaces, packaging, and cross-agent parity.
 mode: subagent
 hidden: true
 permission:

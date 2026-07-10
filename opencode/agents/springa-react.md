@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /review orchestrator. Do not invoke directly; invoke /review instead. Reviews React/Next.js patterns for Springa.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews React/Next.js patterns for Springa.
 mode: subagent
 hidden: true
 permission:

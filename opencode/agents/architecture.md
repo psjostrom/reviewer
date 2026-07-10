@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /review orchestrator. Do not invoke directly; invoke /review instead. Reviews changes for workarounds, complexity, and stale comments.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews changes for workarounds, complexity, and stale comments.
 mode: subagent
 hidden: true
 permission:

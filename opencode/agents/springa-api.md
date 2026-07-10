@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /review orchestrator. Do not invoke directly; invoke /review instead. Reviews API contract and schema compatibility for Springa.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews API contract and schema compatibility for Springa.
 mode: subagent
 hidden: true
 permission:

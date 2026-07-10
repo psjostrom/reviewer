@@ -146,4 +146,4 @@ Every review agent declares `tools: Bash, Glob, Grep, Read`. This prunes the ent
 - `scripts/validate_codex_reviewer.py` — deterministic reviewer bundle validation.
 - `opencode/agents/reviewer.md` — opencode orchestrator (primary agent).
 - `opencode/agents/*.md` — opencode reviewer subagents.
-- `opencode/commands/review.md` — opencode orchestrator command.
+- `opencode/commands/parallel-review.md` — opencode orchestrator command.

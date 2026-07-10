@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /review orchestrator. Do not invoke directly; invoke /review instead. Reviews coroutine and lifecycle safety for Strimma.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews coroutine and lifecycle safety for Strimma.
 mode: subagent
 hidden: true
 permission:

@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /review orchestrator. Do not invoke directly; invoke /review instead. Reviews medical/CGM data integrity for Strimma.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /review instead. Reviews medical/CGM data integrity for Strimma.
 mode: subagent
 hidden: true
 permission:
