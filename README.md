@@ -37,6 +37,10 @@ After installing, use the command:
 
 The `/review` command runs on a custom `reviewer` primary agent (defined in `opencode/agents/reviewer.md`) that dispatches the review subagents via the Task tool, scores findings, and either fixes locally or posts inline PR comments via the `gh` CLI.
 
+For Standard and Deep reviews, opencode auto-detects Strimma, Springa, Garmin
+Connect IQ, Frontload, and agent-plugins repositories and adds the matching
+domain reviewers.
+
 **Model selection:** opencode's Task tool doesn't support per-call model overrides. To run reviewers on a specific model, set the `model` field on each review agent in your `opencode.json`:
 
 ```json
@@ -73,14 +77,15 @@ Use $parallel-review to review PR #6 deeply, limited to apps/web and packages/ap
 The skill reviews PRs, branch comparisons, staged/unstaged/untracked local changes, or those targets restricted to repository-relative files and directories. It chooses Quick, Standard, or Deep depth from the scoped diff risk and size. It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
 
 For Standard and Deep reviews, Codex auto-detects Strimma, Springa, Garmin
-Connect IQ, and Frontload repositories and adds the matching domain reviewers.
-Frontload reviews add separate core-correctness and integration-safety agents.
+Connect IQ, Frontload, and agent-plugins repositories and adds the matching
+domain reviewers. Frontload reviews add separate core-correctness and
+integration-safety agents.
 
 ## Claude Code
 
 Use `/reviewer:review` or its `/r` alias.
 
-Multi-agent code review with scored issues. Reviews a PR or local diff; scores every finding; then fixes directly or posts inline PR comments. Auto-detects the project (Strimma, Springa, Garmin CIQ) and adds matching domain agents.
+Multi-agent code review with scored issues. Reviews a PR or local diff; scores every finding; then fixes directly or posts inline PR comments. Auto-detects the project (Strimma, Springa, Garmin CIQ, Frontload, agent-plugins) and adds matching domain agents.
 
 ```
 /r <pr-number>   # review a PR
@@ -138,7 +143,7 @@ Every review agent declares `tools: Bash, Glob, Grep, Read`. This prunes the ent
 - `.codex-plugin/plugin.json` — Codex plugin metadata.
 - `skills/parallel-review/SKILL.md` — Codex orchestrator.
 - `skills/parallel-review/references/` — Codex scoring, action safety, contract, and specialist prompts.
-- `scripts/validate_codex_reviewer.py` — deterministic Codex bundle validation.
+- `scripts/validate_codex_reviewer.py` — deterministic reviewer bundle validation.
 - `opencode/agents/reviewer.md` — opencode orchestrator (primary agent).
 - `opencode/agents/*.md` — opencode reviewer subagents.
 - `opencode/commands/review.md` — opencode orchestrator command.

@@ -34,6 +34,13 @@ class DomainReviewerWiringTests(unittest.TestCase):
 
         self.assertTrue(self.validate(text))
 
+    def test_rejects_agent_plugins_mapping_outside_domain_section(self) -> None:
+        mapping = "- Agent Plugins: `agent-plugins.md`"
+        text = self.skill_text.replace(f"{mapping}\n", "")
+        text = f"{text}\n<!-- stale documentation: {mapping} -->\n"
+
+        self.assertTrue(self.validate(text))
+
     def test_rejects_standard_panel_without_matching_domain_reviewers(self) -> None:
         text = self.skill_text.replace(
             "Test Reviewer when source changed, all matching domain reviewers",
@@ -50,6 +57,30 @@ class DomainReviewerWiringTests(unittest.TestCase):
         )
 
         self.assertTrue(self.validate(text))
+
+
+class ReviewerParityTests(unittest.TestCase):
+    def test_rejects_reviewer_missing_from_claude_surface(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_reviewer_surface_parity(
+            codex_reviewers={"bug-hunter", "frontload-core"},
+            claude_reviewers={"bug-hunter"},
+            opencode_reviewers={"bug-hunter", "frontload-core"},
+            errors=errors,
+        )
+
+        self.assertIn("missing Claude reviewer agents: frontload-core", errors)
+
+    def test_rejects_reviewer_missing_from_opencode_surface(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_reviewer_surface_parity(
+            codex_reviewers={"bug-hunter", "frontload-core"},
+            claude_reviewers={"bug-hunter", "frontload-core"},
+            opencode_reviewers={"bug-hunter"},
+            errors=errors,
+        )
+
+        self.assertIn("missing opencode reviewer agents: frontload-core", errors)
 
 
 if __name__ == "__main__":

@@ -60,6 +60,8 @@ Determine the project type from the basename of the git repository root (`basena
 - **Strimma** — basename contains `Strimma`. Android/Kotlin CGM medical app.
 - **Springa** — basename contains `Springa`. Next.js/TypeScript workout + BG system.
 - **Garmin CIQ** — basename contains `garmin`. Monkey C Connect IQ apps (SugarField, SugarGraph, SugarWave, StepField, NextStepField).
+- **Frontload** — basename is `frontload` or a root package manifest identifies the project as `frontload`.
+- **Agent Plugins** — basename is `agent-plugins` or the repo contains `.agents/plugins/marketplace.json` and `plugins/reviewer/`.
 - **Generic** — anything else. Run universal agents only.
 
 ### Select review depth (right-size the panel to risk)
@@ -77,7 +79,7 @@ Rules:
 - The agents carrying the most correctness and domain value — **Bug Hunter, Guidelines, Test Reviewer, and the domain agents** — survive every non-Quick depth. Only the two generalists (**Architecture**, **Error & Edge Cases**) are dropped at Standard depth; they yield mostly structural/polish findings that are acceptable to skip on a small, low-risk diff. Be aware this is a real coverage tradeoff: duplication, over-broad abstraction, and edge-state findings come from those two.
 - At **Standard** depth, skip **Test Reviewer** only when no source/logic files changed (diff is tests + docs + config only); otherwise it runs.
 - **Always state the chosen depth and a one-line reason**, and how to override — e.g. _"Standard depth (no critical files, 250 lines changed): running 4 agents, skipping Architecture and Error & Edge Cases. Re-run with `--deep` for the full panel."_ This keeps the coverage tradeoff visible so the user can escalate.
-- Size is a heuristic, not a rule. If the diff *looks* riskier than its size — touches medical/glucose math, financial logic, API contracts, coroutine/lifecycle, native CIQ code — bump to **Deep** even if no file was tiered Critical.
+- Size is a heuristic, not a rule. If the diff *looks* riskier than its size — touches medical/glucose math, financial logic, API contracts, coroutine/lifecycle, native CIQ code, plugin packaging, install scripts, or reviewer dispatch wiring — bump to **Deep** even if no file was tiered Critical.
 
 ### Agent Dispatch
 
@@ -95,7 +97,7 @@ Rules:
 - [ ] Agent 3 — Error & Edge Cases _(Deep only)_
 - [ ] Agent 4 — Architecture & Quality _(Deep only)_
 - [ ] Agent 5 — Test Reviewer _(Deep + Standard-with-source)_
-- [ ] Domain agents _(Deep + Standard; skipped at Quick — if detected: S1/S2 for Strimma, P1/P2 for Springa, G1 for Garmin)_
+- [ ] Domain agents _(Deep + Standard; skipped at Quick — if detected: S1/S2 for Strimma, P1/P2 for Springa, G1 for Garmin, F1/F2 for Frontload, A1 for Agent Plugins)_
 
 Each agent MUST return its findings as a structured list. For each issue found, include all of these on clearly labeled lines:
 - **Description:** what's wrong
@@ -130,6 +132,9 @@ If no issues are found, the agent must say "No issues found" — not return an e
 | Springa | P1 — API Contract & Schema | `reviewer:springa-api` |
 | Springa | P2 — React & Next.js Patterns | `reviewer:springa-react` |
 | Garmin CIQ | G1 — Monkey C & CIQ Safety | `reviewer:garmin-ciq` |
+| Frontload | F1 — Core Correctness | `reviewer:frontload-core` |
+| Frontload | F2 — Integration & Safety | `reviewer:frontload-integration` |
+| Agent Plugins | A1 — Surface Parity | `reviewer:agent-plugins` |
 
 ## Step 5: Synthesize & Deduplicate
 

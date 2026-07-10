@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the portable Codex surface of the reviewer plugin."""
+"""Validate the reviewer plugin bundle."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ REQUIRED_PATHS = (
 )
 
 REVIEWER_NAMES = {
+    "agent-plugins",
     "architecture",
     "bug-hunter",
     "error-edges",
@@ -41,6 +42,7 @@ REVIEWER_NAMES = {
 }
 
 REVIEWER_MARKERS = {
+    "agent-plugins": ("plugin surfaces", "discovery directories", "platform-specific syntax"),
     "architecture": ("workaround", "comments"),
     "bug-hunter": ("wrong results", "Never claim"),
     "error-edges": ("production-reachable", "Trace callers"),
@@ -60,6 +62,13 @@ PLACEHOLDERS = (
     "TBD",
     "implement later",
 )
+
+
+def reviewer_names_in(path: Path, ignored: set[str] | None = None) -> set[str]:
+    ignored = ignored or set()
+    if not path.exists():
+        return set()
+    return {reviewer.stem for reviewer in path.glob("*.md") if reviewer.stem not in ignored}
 
 
 def load_json(path: Path, errors: list[str]) -> dict:
@@ -103,7 +112,9 @@ def validate_domain_reviewer_wiring(text: str, skill_path: Path, errors: list[st
     normalized_domain_section = re.sub(r"\s+", " ", domain_section)
     for marker in (
         "Detect Frontload only when the repository name is `frontload` or a root package manifest identifies the project as `frontload`.",
+        "Detect Agent Plugins only when the repository name is `agent-plugins`, or when the repo contains `.agents/plugins/marketplace.json` and `plugins/reviewer/`.",
         "- Frontload: `frontload-core.md`, `frontload-integration.md`",
+        "- Agent Plugins: `agent-plugins.md`",
         "Domain reviewers run at Standard and Deep, never Quick.",
     ):
         require(marker in normalized_domain_section, f"{skill_path}: missing active domain reviewer invariant {marker!r}", errors)
@@ -268,6 +279,38 @@ def validate_reviewers(errors: list[str]) -> None:
         normalized_bodies[name] = normalized
 
 
+def validate_reviewer_surface_parity(
+    codex_reviewers: set[str],
+    claude_reviewers: set[str],
+    opencode_reviewers: set[str],
+    errors: list[str],
+    expected_reviewers: set[str] | None = None,
+) -> None:
+    expected = expected_reviewers or (codex_reviewers | claude_reviewers | opencode_reviewers)
+    surfaces = (
+        ("Codex reviewer prompts", codex_reviewers),
+        ("Claude reviewer agents", claude_reviewers),
+        ("opencode reviewer agents", opencode_reviewers),
+    )
+    for label, reviewers in surfaces:
+        missing = sorted(expected - reviewers)
+        extra = sorted(reviewers - expected)
+        if missing:
+            errors.append(f"missing {label}: {', '.join(missing)}")
+        if extra:
+            errors.append(f"unexpected {label}: {', '.join(extra)}")
+
+
+def validate_cross_platform_reviewer_parity(errors: list[str]) -> None:
+    validate_reviewer_surface_parity(
+        codex_reviewers=reviewer_names_in(SKILL_ROOT / "references" / "reviewers"),
+        claude_reviewers=reviewer_names_in(PLUGIN_ROOT / "agents"),
+        opencode_reviewers=reviewer_names_in(PLUGIN_ROOT / "opencode" / "agents", ignored={"reviewer"}),
+        errors=errors,
+        expected_reviewers=set(REVIEWER_NAMES),
+    )
+
+
 def validate_references(errors: list[str]) -> None:
     contract_path = SKILL_ROOT / "references" / "reviewer-contract.md"
     scoring_path = SKILL_ROOT / "references" / "scoring.md"
@@ -338,6 +381,7 @@ def main() -> int:
     validate_marketplace(errors)
     validate_skill(errors)
     validate_reviewers(errors)
+    validate_cross_platform_reviewer_parity(errors)
     validate_references(errors)
     validate_placeholders(errors)
 
@@ -347,7 +391,7 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print("Codex reviewer validation passed.")
+    print("Reviewer validation passed.")
     return 0
 
 

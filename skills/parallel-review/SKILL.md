@@ -113,6 +113,7 @@ User overrides win. Otherwise:
 | Deep | Any Critical file or at least 400 changed lines | All universal reviewers and all matching domain reviewers |
 
 Treat a small diff as Deep when it touches medical/glucose math, financial logic, authentication, security boundaries, public API compatibility, coroutine/lifecycle behavior, migrations, or native Connect IQ code.
+Also treat a small diff as Deep when it changes plugin packaging, install scripts, reviewer dispatch wiring, or agent discovery conventions.
 
 Always state the selected depth, why, the panel, and how the user can override it.
 
@@ -132,10 +133,14 @@ arbitrary changed-text mentions.
 Detect Frontload only when the repository name is `frontload` or a root package
 manifest identifies the project as `frontload`.
 
+Detect Agent Plugins only when the repository name is `agent-plugins`, or when
+the repo contains `.agents/plugins/marketplace.json` and `plugins/reviewer/`.
+
 - Strimma: `strimma-coroutine.md`, `strimma-medical.md`
 - Springa: `springa-api.md`, `springa-react.md`
 - Garmin/Connect IQ: `garmin-ciq.md`
 - Frontload: `frontload-core.md`, `frontload-integration.md`
+- Agent Plugins: `agent-plugins.md`
 - Generic: no domain reviewer
 
 Domain reviewers run at Standard and Deep, never Quick.
