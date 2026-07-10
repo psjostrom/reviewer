@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import importlib.util
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -81,6 +84,22 @@ class ReviewerParityTests(unittest.TestCase):
         )
 
         self.assertIn("missing opencode reviewer agents: frontload-core", errors)
+
+
+class ValidatorOutputTests(unittest.TestCase):
+    def test_failure_banner_matches_bundle_scope(self) -> None:
+        stderr = io.StringIO()
+
+        def fail_parity(errors: list[str]) -> None:
+            errors.append("forced parity failure")
+
+        with mock.patch.object(VALIDATOR, "validate_cross_platform_reviewer_parity", side_effect=fail_parity):
+            with contextlib.redirect_stderr(stderr):
+                status = VALIDATOR.main()
+
+        self.assertEqual(status, 1)
+        self.assertIn("Reviewer validation failed:", stderr.getvalue())
+        self.assertNotIn("Codex reviewer validation failed:", stderr.getvalue())
 
 
 if __name__ == "__main__":

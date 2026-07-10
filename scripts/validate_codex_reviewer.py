@@ -386,7 +386,7 @@ def main() -> int:
     validate_placeholders(errors)
 
     if errors:
-        print("Codex reviewer validation failed:", file=sys.stderr)
+        print("Reviewer validation failed:", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
