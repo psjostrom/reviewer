@@ -32,7 +32,7 @@ Set the review mode: `LOCAL` or `PR`.
 
 1. Read all CLAUDE.md and AGENTS.md files in the repo (root + any in directories touched by the changes).
 2. Get the diff:
-   - **LOCAL mode:** First, snapshot which files are currently untracked: `UNTRACKED=$(git ls-files --others --exclude-standard)`. Then intent-to-add them so they appear in the diff: `echo "$UNTRACKED" | xargs -I{} git add -N {}`. Now `git diff` captures everything (unstaged, staged, and newly tracked). After the review is complete (Step 8), undo the intent-to-add ONLY for the files that were untracked before: `echo "$UNTRACKED" | xargs -I{} git reset HEAD {} 2>/dev/null`. This preserves the user's original staging state.
+   - **LOCAL mode:** Use `git diff HEAD` to capture all tracked changes (staged and unstaged) without modifying the index. Then list untracked files with `git ls-files --others --exclude-standard` and read each one directly with the read tool. Do NOT use `git add -N` — it mutates the index.
    - **PR mode:** `gh pr diff <number>`. Also capture the PR HEAD commit SHA: `gh pr view <number> --json headRefOid -q .headRefOid` — this is needed for posting review comments later.
 3. Get the list of changed files.
 
@@ -255,8 +255,6 @@ For each selected issue:
 3. Briefly state what was changed.
 
 After all fixes, show a summary of what was changed.
-
-Undo the intent-to-add from Step 2: `echo "$UNTRACKED" | xargs -I{} git reset HEAD {} 2>/dev/null`.
 
 ### PR mode — Fix directly (if user chose "fix")
 
