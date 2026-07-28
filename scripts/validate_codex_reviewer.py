@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Validate the reviewer plugin bundle."""
+"""Validate the full multi-harness reviewer plugin bundle."""
 
 from __future__ import annotations
 
 import json
 import re
+import stat
 import sys
 from pathlib import Path
+
+import yaml
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
@@ -14,15 +17,28 @@ REPO_ROOT = PLUGIN_ROOT.parents[1]
 SKILL_ROOT = PLUGIN_ROOT / "skills" / "parallel-review"
 LEGACY_SKILL_ROOT = PLUGIN_ROOT / "skills" / "review-pr"
 MARKETPLACE_PATH = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
+CURSOR_MANIFEST = PLUGIN_ROOT / ".cursor-plugin" / "plugin.json"
+CURSOR_MARKETPLACE = REPO_ROOT / ".cursor-plugin" / "marketplace.json"
+INSTALL_CURSOR = REPO_ROOT / "install-cursor.sh"
+
+HARNESS_REFS = ("codex.md", "cursor.md", "claude-code.md", "opencode.md")
+MAX_SHELL_BODY_CHARS = 1200
+MAX_ORCHESTRATOR_BODY_CHARS = 2500
+OPENCODE_SKILLS_LINK = PLUGIN_ROOT / "opencode" / "skills"
 
 REQUIRED_PATHS = (
     PLUGIN_ROOT / ".codex-plugin" / "plugin.json",
+    CURSOR_MANIFEST,
     SKILL_ROOT / "SKILL.md",
     SKILL_ROOT / "agents" / "openai.yaml",
     SKILL_ROOT / "references" / "reviewer-contract.md",
     SKILL_ROOT / "references" / "scoring.md",
     SKILL_ROOT / "references" / "github-actions.md",
     MARKETPLACE_PATH,
+    CURSOR_MARKETPLACE,
+    INSTALL_CURSOR,
+    OPENCODE_SKILLS_LINK,
+    *tuple(SKILL_ROOT / "references" / name for name in HARNESS_REFS),
 )
 
 REVIEWER_NAMES = {
@@ -42,7 +58,7 @@ REVIEWER_NAMES = {
 }
 
 REVIEWER_MARKERS = {
-    "agent-plugins": ("plugin surfaces", "discovery directories", "platform-specific syntax"),
+    "agent-plugins": ("plugin surfaces", "discovery directories", "platform-specific syntax", "Cursor"),
     "architecture": ("workaround", "comments"),
     "bug-hunter": ("wrong results", "Never claim"),
     "error-edges": ("production-reachable", "Trace callers"),
@@ -61,6 +77,16 @@ PLACEHOLDERS = (
     "[TODO:",
     "TBD",
     "implement later",
+)
+
+ORCHESTRATOR_SHELLS = (
+    (PLUGIN_ROOT / "commands" / "review.md", "claude-code.md"),
+    (PLUGIN_ROOT / "opencode" / "commands" / "parallel-review.md", "opencode.md"),
+)
+
+AGENT_SHELL_DIRS = (
+    PLUGIN_ROOT / "agents",
+    PLUGIN_ROOT / "opencode" / "agents",
 )
 
 
@@ -88,6 +114,15 @@ def require(condition: bool, message: str, errors: list[str]) -> None:
         errors.append(message)
 
 
+def split_frontmatter(text: str) -> tuple[str, str]:
+    if not text.startswith("---\n"):
+        return "", text
+    end = text.find("\n---\n", 4)
+    if end < 0:
+        return "", text
+    return text[: end + 5], text[end + 5 :]
+
+
 def require_in_order(text: str, markers: tuple[str, ...], path: Path, label: str, errors: list[str]) -> None:
     position = -1
     for marker in markers:
@@ -111,17 +146,23 @@ def validate_domain_reviewer_wiring(text: str, skill_path: Path, errors: list[st
     domain_section = text[domain_start:dispatch_start]
     normalized_domain_section = re.sub(r"\s+", " ", domain_section)
     for marker in (
-        "Detect Frontload only when the repository name is `frontload` or a root package manifest identifies the project as `frontload`.",
-        "Detect Agent Plugins only when the repository name is `agent-plugins`, or when the repo contains `.agents/plugins/marketplace.json` and `plugins/reviewer/`.",
-        "- Frontload: `frontload-core.md`, `frontload-integration.md`",
-        "- Agent Plugins: `agent-plugins.md`",
+        'basename of the git repository root',
+        "**Strimma** — basename contains `Strimma`",
+        "**Springa** — basename contains `Springa`",
+        "**Garmin/Connect IQ** — basename contains `garmin`",
+        "**Frontload** — basename is `frontload`",
+        "**Agent Plugins** — basename is `agent-plugins`",
         "Domain reviewers run at Standard and Deep, never Quick.",
+        "### Test Reviewer at Standard depth",
+        "Skip Test Reviewer at Standard when the scoped diff is exclusively Low-tier",
     ):
-        require(marker in normalized_domain_section, f"{skill_path}: missing active domain reviewer invariant {marker!r}", errors)
+        require(marker in normalized_domain_section or marker in text, f"{skill_path}: missing active domain reviewer invariant {marker!r}", errors)
 
     for marker in (
         "| Standard | No Critical files and fewer than 400 changed lines | Bug Hunter, Guidelines, Test Reviewer when source changed, all matching domain reviewers |",
         "| Deep | Any Critical file or at least 400 changed lines | All universal reviewers and all matching domain reviewers |",
+        "**Codex / Cursor:** inline both into the child prompt",
+        "**Claude Code / opencode:** pass orchestration context only",
     ):
         require(marker in text, f"{skill_path}: missing domain panel wiring {marker!r}", errors)
 
@@ -159,6 +200,14 @@ def validate_manifest(errors: list[str]) -> None:
         require(unsupported not in manifest, f"{path}: unsupported unused field {unsupported}", errors)
 
 
+def validate_cursor_manifest(errors: list[str]) -> None:
+    if not CURSOR_MANIFEST.exists():
+        return
+    manifest = load_json(CURSOR_MANIFEST, errors)
+    require(manifest.get("name") == "reviewer", f"{CURSOR_MANIFEST}: name must be reviewer", errors)
+    require(manifest.get("skills") == "./skills/", f"{CURSOR_MANIFEST}: skills must be ./skills/", errors)
+
+
 def validate_marketplace(errors: list[str]) -> None:
     if not MARKETPLACE_PATH.exists():
         return
@@ -187,6 +236,45 @@ def validate_marketplace(errors: list[str]) -> None:
     )
 
 
+def validate_cursor_marketplace(errors: list[str]) -> None:
+    if not CURSOR_MARKETPLACE.exists():
+        return
+    marketplace = load_json(CURSOR_MARKETPLACE, errors)
+    require(marketplace.get("name") == "agent-plugins", f"{CURSOR_MARKETPLACE}: unexpected name", errors)
+    entries = marketplace.get("plugins")
+    require(isinstance(entries, list), f"{CURSOR_MARKETPLACE}: plugins must be an array", errors)
+    if not isinstance(entries, list):
+        return
+    names = {entry.get("name") for entry in entries if isinstance(entry, dict)}
+    require("reviewer" in names, f"{CURSOR_MARKETPLACE}: missing reviewer entry", errors)
+    require("shipwright" in names, f"{CURSOR_MARKETPLACE}: missing shipwright entry", errors)
+    reviewer = next((entry for entry in entries if isinstance(entry, dict) and entry.get("name") == "reviewer"), None)
+    if isinstance(reviewer, dict):
+        require(
+            reviewer.get("source") == "./plugins/reviewer",
+            f"{CURSOR_MARKETPLACE}: reviewer source must be ./plugins/reviewer",
+            errors,
+        )
+
+
+def validate_install_cursor(errors: list[str]) -> None:
+    if not INSTALL_CURSOR.exists():
+        return
+    mode = INSTALL_CURSOR.stat().st_mode
+    require(mode & stat.S_IXUSR, f"{INSTALL_CURSOR}: must be executable", errors)
+    text = INSTALL_CURSOR.read_text(encoding="utf-8")
+    for marker in (
+        "CURSOR_PLUGINS_LOCAL",
+        "Refusing to install",
+        "is not a symlink",
+        'ln -sfn "$src" "$dest"',
+        "is_available_plugin",
+        "assert_dest_under_plugins",
+        "not an available Cursor plugin name",
+    ):
+        require(marker in text, f"{INSTALL_CURSOR}: missing install safety marker {marker!r}", errors)
+
+
 def validate_skill(errors: list[str]) -> None:
     skill_path = SKILL_ROOT / "SKILL.md"
     metadata_path = SKILL_ROOT / "agents" / "openai.yaml"
@@ -194,9 +282,13 @@ def validate_skill(errors: list[str]) -> None:
         text = skill_path.read_text(encoding="utf-8")
         require(text.startswith("---\n"), f"{skill_path}: missing YAML frontmatter", errors)
         require(re.search(r"^name:\s*parallel-review\s*$", text, re.MULTILINE) is not None, f"{skill_path}: wrong name", errors)
+        require(
+            re.search(r"^disable-model-invocation:\s*true\s*$", text, re.MULTILINE) is not None,
+            f"{skill_path}: must set disable-model-invocation: true",
+            errors,
+        )
         require("# Parallel Code Review" in text, f"{skill_path}: wrong title", errors)
         require("parallel" in text.lower() and "subagent" in text.lower(), f"{skill_path}: must require parallel subagents", errors)
-        require("fork_context: false" in text, f"{skill_path}: must require self-contained subagent threads", errors)
         require("Do not merge" in text, f"{skill_path}: must explicitly forbid merging", errors)
         require(
             "from the directory containing this `SKILL.md`" in text,
@@ -223,6 +315,8 @@ def validate_skill(errors: list[str]) -> None:
         ):
             require(marker in text, f"{skill_path}: missing path-scope invariant {marker!r}", errors)
         validate_domain_reviewer_wiring(text, skill_path, errors)
+        for adapter in HARNESS_REFS:
+            require(f"`references/{adapter}`" in text, f"{skill_path}: must reference harness adapter {adapter!r}", errors)
         require_in_order(
             text,
             (
@@ -249,6 +343,55 @@ def validate_skill(errors: list[str]) -> None:
         )
         require("$parallel-review" in text, f"{metadata_path}: default prompt must mention $parallel-review", errors)
         require("$review-pr" not in text, f"{metadata_path}: must not mention legacy $review-pr", errors)
+
+
+def validate_harness_adapters(errors: list[str]) -> None:
+    for name in HARNESS_REFS:
+        path = SKILL_ROOT / "references" / name
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        require(
+            "### Child model floor (required)" in text,
+            f"{path}: missing child model floor section",
+            errors,
+        )
+        for role in sorted(REVIEWER_NAMES):
+            require(
+                f"{role}.md`" in text,
+                f"{path}: missing shared reviewer wiring for {role!r}",
+                errors,
+            )
+    codex_path = SKILL_ROOT / "references" / "codex.md"
+    if codex_path.exists():
+        text = codex_path.read_text(encoding="utf-8")
+        require("fork_context: false" in text, f"{codex_path}: must require self-contained subagent threads", errors)
+        require("gpt-5.6-terra" in text, f"{codex_path}: must require Terra child model", errors)
+        require("medium" in text, f"{codex_path}: must require medium child effort", errors)
+    cursor_path = SKILL_ROOT / "references" / "cursor.md"
+    if cursor_path.exists():
+        text = cursor_path.read_text(encoding="utf-8")
+        require("composer-2.5-fast" in text, f"{cursor_path}: must require Composer child model", errors)
+        require("cursor-grok" in text.lower() or "frontier Grok" in text, f"{cursor_path}: must forbid frontier Grok children", errors)
+    claude_path = SKILL_ROOT / "references" / "claude-code.md"
+    if claude_path.exists():
+        text = claude_path.read_text(encoding="utf-8")
+        require("**sonnet**" in text, f"{claude_path}: must default specialists to sonnet", errors)
+    opencode_path = SKILL_ROOT / "references" / "opencode.md"
+    if opencode_path.exists():
+        text = opencode_path.read_text(encoding="utf-8")
+        require("opencode.json" in text, f"{opencode_path}: must document mid-tier opencode.json models", errors)
+        require("Do not default specialists to Opus" in text, f"{opencode_path}: must forbid Opus defaults", errors)
+        require(
+            injects_shared_root_into_task_prompt(text),
+            f"{opencode_path}: must require absolute SHARED_ROOT in the Task prompt payload",
+            errors,
+        )
+        require(
+            forbids_specialist_shared_root_rediscovery(text),
+            f"{opencode_path}: must forbid specialist SHARED_ROOT rediscovery",
+            errors,
+        )
 
 
 def validate_reviewers(errors: list[str]) -> None:
@@ -285,13 +428,16 @@ def validate_reviewer_surface_parity(
     opencode_reviewers: set[str],
     errors: list[str],
     expected_reviewers: set[str] | None = None,
+    cursor_reviewers: set[str] | None = None,
 ) -> None:
-    expected = expected_reviewers or (codex_reviewers | claude_reviewers | opencode_reviewers)
-    surfaces = (
+    surfaces: list[tuple[str, set[str]]] = [
         ("Codex reviewer prompts", codex_reviewers),
         ("Claude reviewer agents", claude_reviewers),
         ("opencode reviewer agents", opencode_reviewers),
-    )
+    ]
+    if cursor_reviewers is not None:
+        surfaces.append(("Cursor reviewer roles", cursor_reviewers))
+    expected = expected_reviewers or set().union(*(reviewers for _, reviewers in surfaces))
     for label, reviewers in surfaces:
         missing = sorted(expected - reviewers)
         extra = sorted(reviewers - expected)
@@ -301,14 +447,231 @@ def validate_reviewer_surface_parity(
             errors.append(f"unexpected {label}: {', '.join(extra)}")
 
 
+def reviewer_names_from_adapter(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    text = path.read_text(encoding="utf-8")
+    return {role for role in REVIEWER_NAMES if f"{role}.md`" in text}
+
+
 def validate_cross_platform_reviewer_parity(errors: list[str]) -> None:
     validate_reviewer_surface_parity(
         codex_reviewers=reviewer_names_in(SKILL_ROOT / "references" / "reviewers"),
         claude_reviewers=reviewer_names_in(PLUGIN_ROOT / "agents"),
         opencode_reviewers=reviewer_names_in(PLUGIN_ROOT / "opencode" / "agents", ignored={"reviewer"}),
+        cursor_reviewers=reviewer_names_from_adapter(SKILL_ROOT / "references" / "cursor.md"),
         errors=errors,
         expected_reviewers=set(REVIEWER_NAMES),
     )
+
+
+def specialist_reads_shared_prompt(body: str, role: str) -> bool:
+    markers = (
+        f"${{CLAUDE_PLUGIN_ROOT}}/skills/parallel-review/references/reviewers/{role}.md",
+        f"$SHARED_ROOT/references/reviewers/{role}.md",
+    )
+    return any(marker in body for marker in markers)
+
+
+def injects_shared_root_into_task_prompt(text: str) -> bool:
+    """True when text requires absolute SHARED_ROOT in the specialist Task payload."""
+    markers = (
+        "SHARED_ROOT=<absolute path from orchestrator resolution>",
+        "Pass `SHARED_ROOT=<absolute path>` in every specialist Task prompt",
+        "include the absolute `SHARED_ROOT=<path>` line in every Task prompt",
+    )
+    return any(marker in text for marker in markers)
+
+
+def forbids_specialist_shared_root_rediscovery(text: str) -> bool:
+    """True only for explicit negative wording (not polarity-ambiguous substrings)."""
+    return (
+        re.search(
+            r"(?i)do\s+(?:\*\*)?not(?:\*\*)?\s+require\s+specialists\s+to\s+rediscover",
+            text,
+        )
+        is not None
+    )
+
+
+def _load_frontmatter_mapping(frontmatter: str) -> dict | None:
+    """Parse markdown frontmatter YAML; reject duplicate mapping keys."""
+    if not frontmatter:
+        return None
+    content = frontmatter.strip()
+    if content.startswith("---"):
+        content = content[3:]
+    if content.endswith("---"):
+        content = content[:-3]
+    content = content.strip()
+    if not content:
+        return None
+
+    class UniqueKeyLoader(yaml.SafeLoader):
+        pass
+
+    def construct_mapping(loader: yaml.SafeLoader, node: yaml.nodes.MappingNode, deep: bool = False) -> dict:
+        mapping: dict = {}
+        for key_node, value_node in node.value:
+            key = loader.construct_object(key_node, deep=deep)
+            if key in mapping:
+                raise yaml.constructor.ConstructorError(
+                    None,
+                    None,
+                    f"duplicate key {key!r}",
+                    key_node.start_mark,
+                )
+            mapping[key] = loader.construct_object(value_node, deep=deep)
+        return mapping
+
+    UniqueKeyLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+        construct_mapping,
+    )
+    try:
+        data = yaml.load(content, Loader=UniqueKeyLoader)
+    except yaml.YAMLError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def frontmatter_external_directory_allow(frontmatter: str) -> bool:
+    """True when permission.external_directory is exactly allow."""
+    data = _load_frontmatter_mapping(frontmatter)
+    if data is None:
+        return False
+    permission = data.get("permission")
+    if not isinstance(permission, dict):
+        return False
+    return permission.get("external_directory") == "allow"
+
+
+def requires_injected_absolute_shared_root(body: str) -> bool:
+    """True when body ties absolute SHARED_ROOT injection to a no-rediscover rule."""
+    return (
+        re.search(
+            r"(?is)Require an absolute\s+`SHARED_ROOT=\.\.\.`\s+line from the orchestrator Task prompt\.\s*"
+            r"Do not rediscover",
+            body,
+        )
+        is not None
+    )
+
+
+def is_opencode_agent_path(path: Path) -> bool:
+    try:
+        path.resolve().relative_to((PLUGIN_ROOT / "opencode" / "agents").resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def validate_thin_shells(errors: list[str]) -> None:
+    if OPENCODE_SKILLS_LINK.exists() or OPENCODE_SKILLS_LINK.is_symlink():
+        require(
+            OPENCODE_SKILLS_LINK.is_symlink() and OPENCODE_SKILLS_LINK.resolve() == (PLUGIN_ROOT / "skills").resolve(),
+            f"{OPENCODE_SKILLS_LINK}: must symlink to plugins/reviewer/skills",
+            errors,
+        )
+
+    for path, adapter in ORCHESTRATOR_SHELLS:
+        if not path.exists():
+            errors.append(f"{path}: missing orchestrator shell")
+            continue
+        text = path.read_text(encoding="utf-8")
+        _, body = split_frontmatter(text)
+        if path.name == "review.md":
+            require(
+                "${CLAUDE_PLUGIN_ROOT}/skills/parallel-review/SKILL.md" in text,
+                f"{path}: must load SKILL.md via CLAUDE_PLUGIN_ROOT",
+                errors,
+            )
+            require(
+                f"${{CLAUDE_PLUGIN_ROOT}}/skills/parallel-review/references/{adapter}" in text,
+                f"{path}: must load harness adapter via CLAUDE_PLUGIN_ROOT",
+                errors,
+            )
+        else:
+            require("$SHARED_ROOT/SKILL.md" in text, f"{path}: must load SKILL.md via SHARED_ROOT", errors)
+            require(
+                f"$SHARED_ROOT/references/{adapter}" in text,
+                f"{path}: must load harness adapter via SHARED_ROOT",
+                errors,
+            )
+            require("realpath" in text or "os.path.realpath" in text, f"{path}: must resolve install symlink", errors)
+            require("~/.config/opencode" in text or "${HOME}/.config/opencode" in text, f"{path}: must use global install path", errors)
+            require("$(pwd)/.opencode" not in text, f"{path}: must not trust repo-local .opencode", errors)
+            require(
+                injects_shared_root_into_task_prompt(text),
+                f"{path}: must instruct injecting absolute SHARED_ROOT into every Task prompt payload",
+                errors,
+            )
+        require(
+            len(body) <= MAX_ORCHESTRATOR_BODY_CHARS,
+            f"{path}: orchestrator body exceeds {MAX_ORCHESTRATOR_BODY_CHARS} chars (likely fat orchestrator)",
+            errors,
+        )
+        for forbidden in ("## Step 5: Synthesize", "Score each deduplicated issue", "git add -N"):
+            require(forbidden not in body, f"{path}: must not duplicate shared workflow content ({forbidden!r})", errors)
+
+    for directory in AGENT_SHELL_DIRS:
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.md")):
+            if path.stem == "reviewer":
+                continue
+            text = path.read_text(encoding="utf-8")
+            frontmatter, body = split_frontmatter(text)
+            role = path.stem
+            require(
+                specialist_reads_shared_prompt(body, role),
+                f"{path}: must instruct reading shared reviewer prompt via plugin-absolute path",
+                errors,
+            )
+            if is_opencode_agent_path(path):
+                require("$SHARED_ROOT" in body, f"{path}: opencode shell must use SHARED_ROOT", errors)
+                require(
+                    requires_injected_absolute_shared_root(body),
+                    f"{path}: opencode shell must require injected SHARED_ROOT",
+                    errors,
+                )
+                require(
+                    frontmatter_external_directory_allow(frontmatter),
+                    f"{path}: opencode shell must allow external_directory for SHARED_ROOT reads",
+                    errors,
+                )
+                data = _load_frontmatter_mapping(frontmatter)
+                permission = data.get("permission") if isinstance(data, dict) else None
+                require(
+                    isinstance(permission, dict) and permission.get("bash") == "deny",
+                    f"{path}: opencode specialist must set bash: deny",
+                    errors,
+                )
+            else:
+                require("${CLAUDE_PLUGIN_ROOT}" in body, f"{path}: Claude shell must use CLAUDE_PLUGIN_ROOT", errors)
+            require(
+                len(body) <= MAX_SHELL_BODY_CHARS,
+                f"{path}: specialist shell body exceeds {MAX_SHELL_BODY_CHARS} chars (likely divergent prose)",
+                errors,
+            )
+            for marker in REVIEWER_MARKERS.get(role, ()):
+                require(marker not in body, f"{path}: must not re-host specialist marker {marker!r}", errors)
+
+    primary = PLUGIN_ROOT / "opencode" / "agents" / "reviewer.md"
+    if primary.exists():
+        text = primary.read_text(encoding="utf-8")
+        frontmatter, _ = split_frontmatter(text)
+        require(
+            frontmatter_external_directory_allow(frontmatter),
+            f"{primary}: primary agent must allow external_directory for SHARED_ROOT reads",
+            errors,
+        )
+        require("$SHARED_ROOT" in text, f"{primary}: primary agent must reference SHARED_ROOT", errors)
+        require(
+            injects_shared_root_into_task_prompt(text),
+            f"{primary}: must instruct injecting absolute SHARED_ROOT into every specialist Task prompt",
+            errors,
+        )
 
 
 def validate_references(errors: list[str]) -> None:
@@ -326,6 +689,7 @@ def validate_references(errors: list[str]) -> None:
             "Do not execute PR code during initial review",
             "Unverified claims remain at 50 or below",
             "Never include it in GitHub comments",
+            "Do not include raw per-reviewer dumps",
         ):
             require(marker in text, f"{scoring_path}: missing invariant {marker!r}", errors)
     if actions_path.exists():
@@ -342,13 +706,22 @@ def validate_references(errors: list[str]) -> None:
             (r"include `start_line`, `start_side:\"RIGHT\"`, `line`, and `side:\"RIGHT\"`", "multi-line inline payload"),
             (r"jq --rawfile", "rawfile body handling"),
             (r"Stop on the first failed comment", "failure stop"),
+            (r"mktemp", "mktemp body files"),
+            (r"Do \*\*not\*\* auto-try `APPROVE` on clean reviews", "no auto APPROVE"),
+            (r"MCP must not bypass the shared posting contract|MCP-based posting", "MCP follows hard rules"),
+            (r"### Summary review body", "summary body section"),
+            (r"not the skill or tool name", "summary forbids skill/tool naming"),
+            (r"Do not refer to chat-report numbering", "summary forbids finding-number refs"),
+            (r"Do not add process filler", "summary forbids process filler"),
         ):
             require(re.search(pattern, text) is not None, f"{actions_path}: missing invariant {label!r}", errors)
+        require("Self-PR clean review fallback" not in text, f"{actions_path}: must not ship Self-PR APPROVE fallback block", errors)
+        require("/tmp/lgtm.txt" not in text, f"{actions_path}: must not use fixed /tmp/lgtm.txt", errors)
         require_in_order(
             text,
             (
                 "Refresh the PR head SHA immediately before posting",
-                "Write the body to `/tmp/reviewer-comment-<n>.txt`",
+                "mktemp",
                 "{commit_id:$commit, path:$path, line:$line, side:\"RIGHT\", body:$body}",
                 "After every inline comment succeeds",
                 "{commit_id:$commit, event:$event, body:$body}",
@@ -360,7 +733,13 @@ def validate_references(errors: list[str]) -> None:
 
 
 def validate_placeholders(errors: list[str]) -> None:
-    roots = [PLUGIN_ROOT / ".codex-plugin", SKILL_ROOT, REPO_ROOT / ".agents" / "plugins"]
+    roots = [
+        PLUGIN_ROOT / ".codex-plugin",
+        PLUGIN_ROOT / ".cursor-plugin",
+        SKILL_ROOT,
+        REPO_ROOT / ".agents" / "plugins",
+        REPO_ROOT / ".cursor-plugin",
+    ]
     for root in roots:
         if not root.exists():
             continue
@@ -378,10 +757,15 @@ def main() -> int:
     for path in REQUIRED_PATHS:
         require(path.exists(), f"{path}: required path is missing", errors)
     validate_manifest(errors)
+    validate_cursor_manifest(errors)
     validate_marketplace(errors)
+    validate_cursor_marketplace(errors)
+    validate_install_cursor(errors)
     validate_skill(errors)
+    validate_harness_adapters(errors)
     validate_reviewers(errors)
     validate_cross_platform_reviewer_parity(errors)
+    validate_thin_shells(errors)
     validate_references(errors)
     validate_placeholders(errors)
 

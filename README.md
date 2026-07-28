@@ -1,6 +1,49 @@
 # Reviewer
 
-Multi-agent code review with scored, verified findings. The plugin supports Claude Code, Codex, and opencode.
+Multi-agent code review with scored, verified findings. The plugin supports Claude Code, Codex, Cursor, and opencode through one shared workflow and specialist prompt tree under `skills/parallel-review/`.
+
+## Shared core
+
+All review behavior lives in:
+
+- `skills/parallel-review/SKILL.md` — end-to-end workflow
+- `skills/parallel-review/references/reviewer-contract.md` — specialist contract
+- `skills/parallel-review/references/scoring.md` — synthesis and scoring
+- `skills/parallel-review/references/github-actions.md` — fix/post actions after the decision gate
+- `skills/parallel-review/references/reviewers/*.md` — sole specialist bodies
+- `skills/parallel-review/references/{codex,cursor,claude-code,opencode}.md` — harness dispatch adapters
+
+Harness files (`commands/`, `agents/`, `opencode/`, `.cursor-plugin/`) are thin shells for discovery, permissions, and dispatch only. Claude shells load shared files via `${CLAUDE_PLUGIN_ROOT}`; opencode shells resolve `$SHARED_ROOT` from the install symlink (`opencode/skills` → `../skills` so `install-opencode.sh` publishes the shared tree).
+
+## Cursor
+
+Install from the repo root:
+
+```sh
+./install-cursor.sh install reviewer
+```
+
+Uninstall:
+
+```sh
+./install-cursor.sh uninstall reviewer
+```
+
+List available plugins:
+
+```sh
+./install-cursor.sh list
+```
+
+Invoke explicitly — the skill sets `disable-model-invocation: true`:
+
+```text
+use parallel-review to review PR #6
+use parallel-review to review the current local changes with a quick review
+/parallel-review
+```
+
+Cursor dispatches reviewers via the `Task` tool with inlined shared prompts. Specialist children must use `composer-2.5-fast` (not frontier Grok). Review stays read-only until findings are reported and you choose an action.
 
 ## opencode
 
@@ -74,7 +117,7 @@ Use $parallel-review to review local changes under src/auth.
 Use $parallel-review to review PR #6 deeply, limited to apps/web and packages/api.
 ```
 
-The skill reviews PRs, branch comparisons, staged/unstaged/untracked local changes, or those targets restricted to repository-relative files and directories. It chooses Quick, Standard, or Deep depth from the scoped diff risk and size. It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
+The skill reviews PRs, branch comparisons, staged/unstaged/untracked local changes, or those targets restricted to repository-relative files and directories. It chooses Quick, Standard, or Deep depth from the scoped diff risk and size. Specialist children default to `gpt-5.6-terra` at `medium` effort (not Sol/frontier). It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
 
 For Standard and Deep reviews, Codex auto-detects Strimma, Springa, Garmin
 Connect IQ, Frontload, and agent-plugins repositories and adds the matching
@@ -85,7 +128,7 @@ integration-safety agents.
 
 Use `/reviewer:review` or its `/r` alias.
 
-Multi-agent code review with scored issues. Reviews a PR or local diff; scores every finding; then fixes directly or posts inline PR comments. Auto-detects the project (Strimma, Springa, Garmin CIQ, Frontload, agent-plugins) and adds matching domain agents.
+Multi-agent code review with scored issues. Reviews a PR or local diff; scores every finding; then fixes directly or posts inline PR comments. Specialist agents default to Sonnet (`--opus` opt-in). Auto-detects the project (Strimma, Springa, Garmin CIQ, Frontload, agent-plugins) and adds matching domain agents.
 
 ```
 /r <pr-number>   # review a PR
@@ -113,7 +156,7 @@ This does two things a running session can't do for itself:
 
 ### 2. Review depth scales to diff risk (automatic)
 
-The command picks a depth from the Step 3 triage before dispatching:
+The shared workflow picks a depth from triage before dispatching:
 
 | Depth | When | Agents |
 | --- | --- | --- |
@@ -133,17 +176,18 @@ The command always announces the chosen depth and how to escalate, so the covera
 
 ### 3. Subagents are read-only and MCP-free
 
-Every review agent declares `tools: Bash, Glob, Grep, Read`. This prunes the entire MCP tool surface from each subagent's context (the biggest saving, since it would otherwise load once per agent) and structurally enforces that reviewers never write, fix, or post — only the orchestrator does.
+Every review agent declares read-only tools/permissions. This prunes the entire MCP tool surface from each subagent's context (the biggest saving, since it would otherwise load once per agent) and structurally enforces that reviewers never write, fix, or post — only the orchestrator does.
 
 ## Files
 
 - `.claude-plugin/plugin.json` — Claude Code plugin metadata.
-- `commands/review.md` — Claude orchestrator.
-- `agents/*.md` — Claude reviewer agents.
+- `commands/review.md` — Claude orchestrator shell.
+- `agents/*.md` — Claude reviewer agent shells.
 - `.codex-plugin/plugin.json` — Codex plugin metadata.
-- `skills/parallel-review/SKILL.md` — Codex orchestrator.
-- `skills/parallel-review/references/` — Codex scoring, action safety, contract, and specialist prompts.
-- `scripts/validate_codex_reviewer.py` — deterministic reviewer bundle validation.
-- `opencode/agents/reviewer.md` — opencode orchestrator (primary agent).
-- `opencode/agents/*.md` — opencode reviewer subagents.
-- `opencode/commands/parallel-review.md` — opencode orchestrator command.
+- `.cursor-plugin/plugin.json` — Cursor plugin metadata.
+- `skills/parallel-review/SKILL.md` — shared orchestrator workflow.
+- `skills/parallel-review/references/` — shared contract, scoring, actions, harness adapters, and specialist prompts.
+- `scripts/validate_codex_reviewer.py` — deterministic multi-harness reviewer bundle validation.
+- `opencode/agents/reviewer.md` — opencode orchestrator primary agent shell.
+- `opencode/agents/*.md` — opencode reviewer subagent shells.
+- `opencode/commands/parallel-review.md` — opencode orchestrator command shell.

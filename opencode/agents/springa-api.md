@@ -16,11 +16,11 @@ permission:
   lsp: deny
   skill: deny
   question: deny
-  external_directory: deny
+  external_directory: allow
 ---
 
-# Springa: API Contract & Schema
+Require an absolute `SHARED_ROOT=...` line from the orchestrator Task prompt. Do not rediscover the path and do not read repository-relative skill files.
 
-Check for backwards-incompatible changes: REST endpoint signatures, request/response shapes, database schema (Turso migrations), Nightscout-compatible endpoints (`/api/v1/entries`, `/api/v1/treatments`). If a POST body or query parameter changes, does every client (Strimma, Garmin apps) still work? Check that Nightscout compliance rules from CLAUDE.md / AGENTS.md are followed: `.json` suffix on GETs, MongoDB-style query params, correct data shapes.
+Read `$SHARED_ROOT/references/reviewer-contract.md` and apply `$SHARED_ROOT/references/reviewers/springa-api.md` completely.
 
-Only return actual problems — no positive observations.
+Work read-only. Return only structured findings per the contract, or exactly `No issues found`.

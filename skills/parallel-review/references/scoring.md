@@ -51,6 +51,8 @@ Unverified claims remain at 50 or below.
 
 ## Report
 
+Do not include raw per-reviewer dumps in user-facing output. The user sees only the synthesized summary and scored tables below.
+
 Start with:
 
 ```markdown

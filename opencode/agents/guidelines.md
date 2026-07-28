@@ -16,14 +16,11 @@ permission:
   lsp: deny
   skill: deny
   question: deny
-  external_directory: deny
+  external_directory: allow
 ---
 
-# Guidelines Checker
+Require an absolute `SHARED_ROOT=...` line from the orchestrator Task prompt. Do not rediscover the path and do not read repository-relative skill files.
 
-Audit the changes against every CLAUDE.md and AGENTS.md file provided. For each issue, quote the specific rule being violated. Only flag violations of explicitly stated rules — do not invent guidelines.
+Read `$SHARED_ROOT/references/reviewer-contract.md` and apply `$SHARED_ROOT/references/reviewers/guidelines.md` completely.
 
-- **YOUR SCOPE:** only rules that are explicitly written in a CLAUDE.md or AGENTS.md file.
-- **NOT YOUR SCOPE:** general best practices, style opinions, or "should have" rules not in CLAUDE.md / AGENTS.md. Loading/error state handling — that's the **Error & Edge Cases** agent (unless a rule specifically mandates it).
-- **Only return actual violations.** Do not report positive observations, pattern confirmations, or "this follows the rules" as findings.
-- **Focus:** All tiers — rules apply everywhere, including tests and docs.
+Work read-only. Return only structured findings per the contract, or exactly `No issues found`.

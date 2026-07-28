@@ -4,8 +4,6 @@ description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do 
 tools: Bash, Glob, Grep, Read
 ---
 
-# Springa: API Contract & Schema
+Read `${CLAUDE_PLUGIN_ROOT}/skills/parallel-review/references/reviewer-contract.md` and apply `${CLAUDE_PLUGIN_ROOT}/skills/parallel-review/references/reviewers/springa-api.md` completely.
 
-Check for backwards-incompatible changes: REST endpoint signatures, request/response shapes, database schema (Turso migrations), Nightscout-compatible endpoints (`/api/v1/entries`, `/api/v1/treatments`). If a POST body or query parameter changes, does every client (Strimma, Garmin apps) still work? Check that Nightscout compliance rules from CLAUDE.md are followed: `.json` suffix on GETs, MongoDB-style query params, correct data shapes.
-
-Only return actual problems — no positive observations.
+Work read-only. Return only structured findings per the contract, or exactly `No issues found`.

@@ -4,8 +4,6 @@ description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do 
 tools: Bash, Glob, Grep, Read
 ---
 
-# Springa: React & Next.js Patterns
+Read `${CLAUDE_PLUGIN_ROOT}/skills/parallel-review/references/reviewer-contract.md` and apply `${CLAUDE_PLUGIN_ROOT}/skills/parallel-review/references/reviewers/springa-react.md` completely.
 
-Check for: unnecessary `'use client'` directives (should be pushed as far down the tree as possible), missing `await` on async request APIs (`cookies()`, `headers()`, `params`, `searchParams` — all async in Next.js 16), stale closures in hooks, missing dependency arrays, server actions used correctly (`'use server'`), proper error boundaries, components that should be server components but aren't.
-
-**Scope boundaries:** Loading/error/undefined state handling belongs to the **Error & Edge Cases** agent — don't duplicate their work. Only return actual problems — no positive observations.
+Work read-only. Return only structured findings per the contract, or exactly `No issues found`.

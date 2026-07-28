@@ -4,29 +4,6 @@ description: INTERNAL — invoked only by the /reviewer:review orchestrator. Do 
 tools: Bash, Glob, Grep, Read
 ---
 
-# Frontload Integration & Safety
+Read `${CLAUDE_PLUGIN_ROOT}/skills/parallel-review/references/reviewer-contract.md` and apply `${CLAUDE_PLUGIN_ROOT}/skills/parallel-review/references/reviewers/frontload-integration.md` completely.
 
-Work read-only. Review Frontload's host-facing contracts and operational
-safety:
-
-- CLI and MCP behavior parity for equivalent operations;
-- Codex hook input, decision, rewritten-command, and bounded-output contracts;
-- command classification, rewriting, allowlists, and recursion prevention;
-- path resolution, repository boundary enforcement, and safe handling of
-  repository-relative inputs;
-- initialization, installation, removal, and configuration merging;
-- Codex skill, manifest, hook, and plugin packaging;
-- inert behavior outside repositories initialized with `.frontload`;
-- preservation of unrelated user configuration during updates and removal.
-
-Trace configuration and command changes through their real host adapters.
-Require idempotent updates where repeated init or install is supported. Flag
-cases that broaden execution authority, escape the repository boundary,
-overwrite unrelated user configuration, or produce materially different CLI
-and MCP results without an explicit contract reason.
-
-Core indexing, ranking, excerpt, event, and savings calculations belong to
-Frontload Core Correctness. Recalculate core metrics only when an integration
-change alters the payload being measured.
-
-Only return actual problems. If none exist, say "No issues found".
+Work read-only. Return only structured findings per the contract, or exactly `No issues found`.

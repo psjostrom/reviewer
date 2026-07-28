@@ -1,0 +1,18 @@
+{
+  "name": "reviewer",
+  "displayName": "Reviewer",
+  "version": "1.1.0",
+  "description": "Multi-agent code review with scored, verified findings for pull requests and local changes.",
+  "author": {
+    "name": "psjostrom",
+    "url": "https://github.com/psjostrom"
+  },
+  "repository": "https://github.com/psjostrom/agent-plugins",
+  "keywords": [
+    "code-review",
+    "review",
+    "subagents",
+    "pr-review"
+  ],
+  "skills": "./skills/"
+}
