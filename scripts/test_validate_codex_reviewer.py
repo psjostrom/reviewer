@@ -325,7 +325,7 @@ class CursorPackagingTests(unittest.TestCase):
         VALIDATOR.validate_install_cursor(errors)
         self.assertEqual(errors, [])
 
-    def test_install_cursor_symlink_refuse_and_uninstall(self) -> None:
+    def test_install_cursor_copy_refuse_and_uninstall(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env = {**os.environ, "CURSOR_PLUGINS_LOCAL": tmp}
             install = subprocess.run(
@@ -338,7 +338,9 @@ class CursorPackagingTests(unittest.TestCase):
             )
             self.assertEqual(install.returncode, 0, install.stderr)
             dest = Path(tmp) / "reviewer"
-            self.assertTrue(dest.is_symlink())
+            self.assertTrue(dest.is_dir())
+            self.assertFalse(dest.is_symlink())
+            self.assertTrue((dest / ".cursor-plugin" / "plugin.json").is_file())
 
             refuse_dir = Path(tmp) / "blocked"
             refuse_dir.mkdir()
@@ -364,6 +366,17 @@ class CursorPackagingTests(unittest.TestCase):
             )
             self.assertNotEqual(traversal.returncode, 0)
             self.assertIn("not an available Cursor plugin name", traversal.stdout + traversal.stderr)
+
+            missing = subprocess.run(
+                [str(INSTALL_CURSOR), "uninstall", "reviewer"],
+                cwd=REPO_ROOT,
+                env={**os.environ, "CURSOR_PLUGINS_LOCAL": str(Path(tmp) / "missing-local")},
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(missing.returncode, 0)
+            self.assertIn("is not installed at", missing.stdout + missing.stderr)
 
             uninstall = subprocess.run(
                 [str(INSTALL_CURSOR), "uninstall", "reviewer"],

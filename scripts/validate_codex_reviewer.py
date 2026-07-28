@@ -266,11 +266,13 @@ def validate_install_cursor(errors: list[str]) -> None:
     for marker in (
         "CURSOR_PLUGINS_LOCAL",
         "Refusing to install",
-        "is not a symlink",
-        'ln -sfn "$src" "$dest"',
+        "is not a plugin directory or symlink",
+        'cp -R "$src" "$dest"',
+        "pwd -P",
         "is_available_plugin",
         "assert_dest_under_plugins",
         "not an available Cursor plugin name",
+        "is not installed at",
     ):
         require(marker in text, f"{INSTALL_CURSOR}: missing install safety marker {marker!r}", errors)
 
