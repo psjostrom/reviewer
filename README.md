@@ -1,193 +1,384 @@
 # Reviewer
 
-Multi-agent code review with scored, verified findings. The plugin supports Claude Code, Codex, Cursor, and opencode through one shared workflow and specialist prompt tree under `skills/parallel-review/`.
+`reviewer` runs a risk-based, multi-agent code review with scored, verified
+findings. It reviews pull requests, branch comparisons, or local changes and
+stays read-only until you choose what to do with the results.
 
-## Shared core
+The shared workflow lives in
+[`skills/parallel-review/SKILL.md`](skills/parallel-review/SKILL.md). The
+harness commands and agent shells only adapt that workflow to Claude Code,
+Codex, Cursor, and opencode.
 
-All review behavior lives in:
+## When to use it
 
-- `skills/parallel-review/SKILL.md` — end-to-end workflow
-- `skills/parallel-review/references/reviewer-contract.md` — specialist contract
-- `skills/parallel-review/references/scoring.md` — synthesis and scoring
-- `skills/parallel-review/references/github-actions.md` — fix/post actions after the decision gate
-- `skills/parallel-review/references/reviewers/*.md` — sole specialist bodies
-- `skills/parallel-review/references/{codex,cursor,claude-code,opencode}.md` — harness dispatch adapters
+Use Reviewer when you want an independent review before merge, especially when
+you want several specialist perspectives, risk-based depth, or inline GitHub
+comments.
 
-Harness files (`commands/`, `agents/`, `opencode/`, `.cursor-plugin/`) are thin shells for discovery, permissions, and dispatch only. Claude shells load shared files via `${CLAUDE_PLUGIN_ROOT}`; opencode shells resolve `$SHARED_ROOT` from the install symlink (`opencode/skills` → `../skills` so `install-opencode.sh` publishes the shared tree).
+Do not use it for:
 
-## Cursor
+- implementing a feature from scratch;
+- a factual question or diagnosis without a requested fix;
+- unchanged code with no PR, branch comparison, or local changes;
+- merging a pull request. Reviewer never merges.
 
-Install from the repo root:
+## Invoke it
 
-```sh
-./install-cursor.sh install reviewer
-```
+The skill is intentionally explicit: it has
+`disable-model-invocation: true`, so ambient prompts do not start a review.
 
-Uninstall:
+| Harness | Invocation | Optional controls |
+| --- | --- | --- |
+| Codex | `Use $parallel-review to review ...` | `quick`, `standard`, `deep`; repository-relative paths |
+| Claude Code | `/reviewer:review` or `/r` | `--quick`, `--deep`, `--opus`; PR number/URL or target |
+| Cursor | `use parallel-review ...` or `/parallel-review` | `--quick`, `--deep`; repository-relative paths |
+| opencode | `/parallel-review` | `--quick`, `--deep`, `--opus` (model config only) |
 
-```sh
-./install-cursor.sh uninstall reviewer
-```
-
-List available plugins:
-
-```sh
-./install-cursor.sh list
-```
-
-Invoke explicitly — the skill sets `disable-model-invocation: true`:
-
-```text
-use parallel-review to review PR #6
-use parallel-review to review the current local changes with a quick review
-/parallel-review
-```
-
-Cursor dispatches reviewers via the `Task` tool with inlined shared prompts. Specialist children must use `composer-2.5-fast` (not frontier Grok). Review stays read-only until findings are reported and you choose an action.
-
-## opencode
-
-Run the install script from the repo root:
-
-```sh
-./install-opencode.sh install reviewer          # global (~/.config/opencode/)
-./install-opencode.sh install reviewer --project # per-project (.opencode/)
-```
-
-Uninstall:
-
-```sh
-./install-opencode.sh uninstall reviewer
-./install-opencode.sh uninstall reviewer --project
-```
-
-List available plugins:
-
-```sh
-./install-opencode.sh list
-```
-
-The script symlinks files from `plugins/reviewer/opencode/` into the opencode discovery directories, so edits to the source files are immediately live.
-
-After installing, use the command:
+Examples:
 
 ```text
-/parallel-review 123      # review PR #123
-/parallel-review          # review current local diff (or the current branch's open PR)
-/parallel-review --deep   # force the full agent panel
-/parallel-review --quick  # force the minimal panel
+Use $parallel-review to review PR #6 with parallel subagents.
+Use $parallel-review to review the current local changes with a quick review.
+Use $parallel-review to review PR #6 deeply, limited to apps/web and packages/api.
 ```
 
-The `/parallel-review` command runs on a custom `reviewer` primary agent (defined in `opencode/agents/reviewer.md`) that dispatches the review subagents via the Task tool, scores findings, and either fixes locally or posts inline PR comments via the `gh` CLI.
-
-For Standard and Deep reviews, opencode auto-detects Strimma, Springa, Garmin
-Connect IQ, Frontload, and agent-plugins repositories and adds the matching
-domain reviewers.
-
-**Model selection:** opencode's Task tool doesn't support per-call model overrides. To run reviewers on a specific model, set the `model` field on each review agent in your `opencode.json`:
-
-```json
-{
-  "agent": {
-    "bug-hunter": { "model": "anthropic/claude-opus-4-20250514" },
-    "guidelines": { "model": "anthropic/claude-opus-4-20250514" }
-  }
-}
+```text
+/r 6
+/r --deep 6
+/r --quick
 ```
 
-The `--opus` flag is accepted but has no effect in opencode — configure models in `opencode.json` instead.
+```text
+/parallel-review 6
+/parallel-review --deep
+/parallel-review --quick
+```
 
-## Codex
+The target can be a PR number or URL, a branch/base comparison, or omitted to
+review tracked and untracked local changes. If the working tree is clean,
+Reviewer can inspect the current branch's open PR. If no target exists, it
+stops and reports that there is nothing to review.
 
-Install this repository as a local marketplace:
+## Review scope
+
+Reviewer accepts these inputs:
+
+- a PR number or URL;
+- a branch or base comparison;
+- current tracked, staged, unstaged, and untracked changes;
+- optional repository-relative files or directories;
+- a depth override: Quick, Standard, or Deep;
+- an instruction to stop after reporting findings.
+
+Path filters apply only to changed files. Reviewer resolves them from the
+repository root, rejects absolute paths and paths outside the repository,
+normalizes duplicates and nested paths, then filters the patch before risk
+triage and dispatch. Reviewers may inspect related unchanged code as evidence,
+but findings must identify a defect in scoped changed code.
+
+## Workflow
+
+### 1. Resolve the review mode
+
+Exactly one mode is selected:
+
+| Mode | Selected when |
+| --- | --- |
+| PR | A PR number or URL is supplied |
+| BRANCH | A branch or base comparison is supplied |
+| LOCAL | No PR is supplied and tracked or untracked changes exist |
+| CURRENT PR | The tree is clean and the current branch has an open PR |
+
+Reviewer reads repository guidance for every changed file, including each
+`AGENTS.md` and `CLAUDE.md` in its directory chain. In PR mode it uses the PR
+head revision, not an assumed matching local checkout.
+
+### 2. Triage risk
+
+Each changed file gets a tier:
+
+| Tier | Typical files |
+| --- | --- |
+| Critical | Core logic, security, authentication, permissions, data processing, medical/financial calculations, migrations, public APIs |
+| Standard | UI, utilities, configuration, build logic, ordinary application code |
+| Low | Tests, documentation, comments, generated files, lockfiles |
+
+The review reports a one-line change summary, the selected depth, why it was
+selected, the panel that ran, and how to override the depth. For diffs above
+1,500 lines, reviewers focus on Critical and Standard files; only Guidelines
+and role-specific test checks inspect Low-tier files.
+
+### 3. Select depth and panel
+
+User overrides win. Otherwise:
+
+| Depth | Automatic trigger | Universal reviewers |
+| --- | --- | --- |
+| Quick | Only Low-tier files | Bug Hunter, Guidelines |
+| Standard | No Critical files and fewer than 400 changed lines | Bug Hunter, Guidelines, Test Reviewer when source changed |
+| Deep | Any Critical file, at least 400 changed lines, or sensitive/plugin-dispatch changes | Bug Hunter, Guidelines, Error & Edge Cases, Architecture & Quality, Test Reviewer |
+
+Small changes are still Deep when they touch medical or glucose math,
+financial logic, authentication, security boundaries, public API compatibility,
+migrations, coroutine/lifecycle behavior, native Connect IQ code, plugin
+packaging, install scripts, reviewer dispatch, or agent discovery.
+
+Standard depth skips Architecture & Quality and Error & Edge Cases. Use Deep
+when structural, duplication, lifecycle, or edge-state coverage matters.
+
+Domain reviewers are detected from repository identity and root manifests, not
+arbitrary changed-text mentions:
+
+| Repository | Added domain reviewers |
+| --- | --- |
+| Strimma | Coroutine & Lifecycle; Medical Data Integrity |
+| Springa | API Contract & Schema; React & Next.js Patterns |
+| Garmin/Connect IQ | Garmin/Connect IQ |
+| Frontload | Core Correctness; Integration & Safety |
+| agent-plugins | Agent Plugins Surface Parity |
+| Other repositories | None |
+
+Domain reviewers run at Standard and Deep, never Quick. At Standard, Test
+Reviewer runs for source/logic changes and is skipped for documentation-only,
+comments-only, generated, lockfile, or test-only changes.
+
+### 4. Dispatch read-only specialists
+
+Reviewer loads the common contract, one prompt per selected role, and the active
+harness adapter before dispatching. It launches one child per selected role in
+one parallel batch. Every child receives the mode, target revision, change
+summary, tiered files, repository guidance, patch or precise retrieval
+instructions, and the structured findings contract.
+
+Specialists:
+
+- Bug Hunter — reachable behavioral defects and regressions.
+- Guidelines — repository and project-rule violations.
+- Error & Edge Cases — failure paths and unusual state transitions.
+- Architecture & Quality — structural defects, coupling, duplication, and
+  maintainability risks.
+- Test Reviewer — missing or misleading coverage for changed behavior.
+- Domain roles — project-specific contracts listed above.
+
+Children are read-only. They do not edit, stage, commit, push, post comments,
+approve, request changes, or merge. If a child fails, Reviewer retries that
+role once with a narrower prompt and discloses missing coverage if it fails
+again. If subagent tools are unavailable, Reviewer says so and asks whether to
+continue as a single-agent review; it never pretends a panel ran.
+
+### 5. Synthesize and score
+
+The controller rejects positive observations and findings without a changed-code
+location or credible causal path. It resolves line numbers against the target
+patch, merges exact and semantic duplicates, preserves the strongest evidence,
+and attaches a test gap to its demonstrated bug instead of creating a second
+finding.
+
+Scores are internal prioritization values shown in the report:
+
+| Score | Meaning |
+| ---: | --- |
+| 0–10 | False positive, pre-existing condition, or unsupported claim |
+| 11–25 | Nitpick or low-confidence concern |
+| 26–50 | Real but minor issue |
+| 51–75 | Moderate issue that should probably be fixed |
+| 76–90 | Important verified defect or explicit guidance violation |
+| 91–100 | Confirmed critical bug, security issue, corruption, data loss, or safety risk |
+
+Critical-tier files add 10 points, capped at 100. Low-tier files subtract 10,
+floored at 0. Before assigning a score above 75, the controller directly
+verifies the claim against source, definitions, dependencies, tests, CI, or
+repository guidance. It does not execute PR code during the initial review;
+claims needing execution stay at 50 or below with the required verification
+named.
+
+The user-facing report contains:
+
+1. a two-to-four-sentence summary;
+2. an Issues table for scores above 25;
+3. a Probably Fine table for scores 25 or below;
+4. the decision question asking which findings to address.
+
+Findings use this evidence shape internally:
+
+```text
+Description: what is wrong
+File: repository-relative path
+Code context: smallest exact changed snippet
+Line: best-effort new-file line number
+Reason: category tag
+Suggestion: concrete fix
+Evidence: execution path, contract, test, or source fact
+```
+
+If there are no findings, the specialist contract uses `No issues found` and
+the synthesis reports a clean review.
+
+## Decision gate
+
+Initial review is read-only. If the input says `stop after reporting`, Reviewer
+stops immediately after the initial report. Otherwise, Reviewer asks which
+numbered findings to address. In PR mode it also asks whether to fix them
+directly or post them as GitHub review comments. It does not edit, comment,
+approve, request changes, commit, push, or merge before the user chooses.
+
+### Fix selected findings
+
+After explicit selection, the controller:
+
+1. refreshes the PR head if applicable;
+2. uses an isolated PR worktree when the current checkout is not already the
+   target branch;
+3. fixes only selected root causes;
+4. runs proportionate checks and inspects the diff;
+5. shows verification evidence.
+
+Commit and push still require separate user authorization. Review threads are
+not resolved unless explicitly requested.
+
+### Post selected findings
+
+GitHub inline comments must:
+
+- use the current PR head SHA;
+- be posted one at a time;
+- stop on the first failure;
+- anchor to current changed lines;
+- use `COMMENT` by default;
+- omit scores, confidence labels, and internal reviewer names.
+
+The body-only summary review is submitted only after every selected inline
+comment succeeds. Reviewer never uses posting as a path to merge.
+
+The complete posting contract, including the `gh api` fallback, is in
+[`skills/parallel-review/references/github-actions.md`](skills/parallel-review/references/github-actions.md).
+
+## Harness behavior
+
+### Codex
+
+Install the local marketplace and plugin, then start a new task so the skill
+list refreshes:
 
 ```sh
 codex plugin marketplace add .
 codex plugin add reviewer@agent-plugins
 ```
 
-Start a new Codex thread after installation so the skill list refreshes.
+Invoke with `$parallel-review`. Specialist children default to
+`gpt-5.6-terra` at `medium` effort. Codex inlines the complete reviewer
+contract and exactly one role prompt into each child. If the live spawn schema
+does not expose model/effort selectors, the controller must disclose and use
+the documented inherited-controller fallback; it must not claim Terra workers
+ran.
 
-Invoke the skill explicitly:
+### Claude Code
 
-```text
-Use $parallel-review to review PR #6 with parallel subagents.
-Use $parallel-review to review the current local changes with a quick review.
-Use $parallel-review to review local changes under src/auth.
-Use $parallel-review to review PR #6 deeply, limited to apps/web and packages/api.
-```
+Install `reviewer`, then invoke `/reviewer:review` or `/r`. Claude defaults
+specialists to Sonnet; `--opus` is an explicit opt-in. `--deep` and `--quick`
+override automatic depth, with `--deep` winning if both are present. Claude
+loads shared files through `${CLAUDE_PLUGIN_ROOT}` and passes orchestration
+context to thin specialist shells.
 
-The skill reviews PRs, branch comparisons, staged/unstaged/untracked local changes, or those targets restricted to repository-relative files and directories. It chooses Quick, Standard, or Deep depth from the scoped diff risk and size. Specialist children default to `gpt-5.6-terra` at `medium` effort (not Sol/frontier). It remains read-only until it reports findings and you select which issues to fix or post as GitHub comments. It never merges a pull request.
-
-For Standard and Deep reviews, Codex auto-detects Strimma, Springa, Garmin
-Connect IQ, Frontload, and agent-plugins repositories and adds the matching
-domain reviewers. Frontload reviews add separate core-correctness and
-integration-safety agents.
-
-## Claude Code
-
-Use `/reviewer:review` or its `/r` alias.
-
-Multi-agent code review with scored issues. Reviews a PR or local diff; scores every finding; then fixes directly or posts inline PR comments. Specialist agents default to Sonnet (`--opus` opt-in). Auto-detects the project (Strimma, Springa, Garmin CIQ, Frontload, agent-plugins) and adds matching domain agents.
-
-```
-/r <pr-number>   # review a PR
-/r               # review the current local diff (or the current branch's open PR)
-```
-
-## Cost & efficiency
-
-A full review fans out several subagents, each reasoning over the diff — so cost scales with **how many agents run** and **how much context each one carries**. The command and agents are tuned to keep both down. For the cheapest run, launch reviews with the `cr` alias (below).
-
-### 1. Launch with the `cr` alias (recommended)
+For cheaper launches, the existing plugin guide supports:
 
 ```sh
 alias cr='claude --strict-mcp-config --model sonnet'
 ```
 
-Then: `cr` → `/r <pr>`.
+This keeps the review session MCP-free; GitHub posting uses the documented
+`gh` path after the decision gate.
 
-This does two things a running session can't do for itself:
+### Cursor
 
-- **`--strict-mcp-config` loads zero MCP servers.** A normal session injects every plugin MCP server's tool schemas (github, playwright, sentry, app-store-connect, …) plus any project `.mcp.json` into the orchestrator's context on every turn — a review uses none of them. `--strict-mcp-config` with no `--mcp-config` drops the whole surface. Posting still works: the command posts PR comments via the `gh` CLI (Bash), not via the github MCP server, so dropping MCP costs the review nothing.
-- **`--model sonnet` runs the orchestrator on Sonnet** instead of Opus (~5× cheaper input). The orchestration — triage, dispatch, dedup, scoring, posting — is structured work Sonnet handles well. Use Opus only when you want maximum reviewer judgment on a high-stakes diff.
+Install the local copy for development or install from the Cursor marketplace.
+Invoke explicitly because ambient invocation is disabled:
 
-> Why not `settings.json`? Disabling MCP via `disabledMcpjsonServers` / `permissions.deny` is **session/project-wide** — it would also kill those servers for your normal sessions. The alias scopes the trim to review launches only. A skill cannot disable its own session's MCP at runtime.
+```text
+use parallel-review to review PR #6
+/parallel-review --deep
+```
 
-### 2. Review depth scales to diff risk (automatic)
+Cursor dispatches general-purpose `Task` children with
+`composer-2.5-fast`, inlines the common contract and role prompt, and does not
+use frontier Grok for specialists. If the live schema cannot select or prove
+that model, the controller must disclose the limitation.
 
-The shared workflow picks a depth from triage before dispatching:
+Local iteration from this checkout:
 
-| Depth | When | Agents |
+```sh
+./install-cursor.sh install reviewer
+./install-cursor.sh uninstall reviewer
+./install-cursor.sh list
+```
+
+Reload the Cursor window after installing or reinstalling.
+
+### opencode
+
+Install globally for trusted shared-skill resolution. A project install adds
+project-local discovery links, but it is not sufficient by itself because the
+command deliberately resolves shared files only from the trusted global
+symlink:
+
+```sh
+./install-opencode.sh install reviewer
+./install-opencode.sh install reviewer --project
+```
+
+Invoke `/parallel-review`. The command resolves the shared skill through the
+trusted global install symlink and passes `SHARED_ROOT` to every child.
+Specialist model selection belongs in `opencode.json`; Task calls do not take
+per-call model overrides. The `--opus` flag is accepted for compatibility but
+does not change the child model. Configure a Sonnet-class or equivalent
+mid-tier model for specialist agents rather than Opus/frontier defaults.
+
+Uninstall with the matching scope:
+
+```sh
+./install-opencode.sh uninstall reviewer
+./install-opencode.sh uninstall reviewer --project
+```
+
+## Troubleshooting
+
+| Symptom | Meaning | Action |
 | --- | --- | --- |
-| **Deep** | any Critical-tier file, or ≥400 lines changed, or `--deep` | full panel (all universal + domain agents) |
-| **Standard** (default) | no Critical files, <400 lines | Bug Hunter, Guidelines, Test Reviewer + domain agents (skips Architecture + Error & Edges) |
-| **Quick** | only Low-tier files (tests, docs, config, lockfiles), or `--quick` | Bug Hunter + Guidelines |
+| `Nothing to review` | No PR, comparison, local change, or current open PR exists | Supply a PR/branch or make the target change present |
+| `Nothing in scope` | Path filters match no changed files | Use repository-relative paths that are part of the diff |
+| Specialist panel unavailable | The harness lacks usable child dispatch | Decide whether to continue as one reviewer; do not treat it as parallel coverage |
+| Standard review feels too shallow | Architecture and edge reviewers are Deep-only | Re-run with `--deep` or `deep` |
+| `--opus` has no effect in opencode | opencode chooses models from `opencode.json` | Configure each specialist agent there |
+| Shared files cannot be resolved in opencode | Plugin was not installed from the trusted symlink | Run `./install-opencode.sh install reviewer` |
+| PR comment fails | Posting stops intentionally at first failure | Refresh the head and retry only after checking the failed request |
 
-Override per run:
+## Source map
 
+- [`skills/parallel-review/SKILL.md`](skills/parallel-review/SKILL.md) — shared
+  workflow, mode resolution, triage, dispatch, synthesis, and decision gate.
+- [`skills/parallel-review/references/reviewer-contract.md`](skills/parallel-review/references/reviewer-contract.md)
+  — read-only child contract and finding format.
+- [`skills/parallel-review/references/scoring.md`](skills/parallel-review/references/scoring.md)
+  — deduplication, scores, verification threshold, and report format.
+- [`skills/parallel-review/references/github-actions.md`](skills/parallel-review/references/github-actions.md)
+  — authorized fix and GitHub-posting actions.
+- [`skills/parallel-review/references/{codex,claude-code,cursor,opencode}.md`](skills/parallel-review/references/)
+  — harness dispatch, model floors, prompt transport, and fallback rules.
+- [`skills/parallel-review/references/reviewers/`](skills/parallel-review/references/reviewers/)
+  — sole specialist role bodies.
+- `commands/`, `opencode/`, `.cursor-plugin/`, and `agents/` — discovery and
+  thin harness shells; they do not replace the shared workflow.
+
+## Validation
+
+After changing reviewer platform files, run:
+
+```sh
+python3 plugins/reviewer/scripts/validate_codex_reviewer.py
 ```
-/r <pr> --deep      # force the full panel (regain Architecture + Error & Edges findings)
-/r <pr> --quick     # force the minimal panel
-/r <pr> --opus      # run the review subagents on Opus
+
+If validator logic changes, also run:
+
+```sh
+python3 -m unittest plugins/reviewer/scripts/test_validate_codex_reviewer.py
 ```
-
-The command always announces the chosen depth and how to escalate, so the coverage tradeoff is never silent. **Standard depth drops the two generalist agents** — structural/duplication and edge-state findings come from those, so use `--deep` when you want them.
-
-### 3. Subagents are read-only and MCP-free
-
-Every review agent declares read-only tools/permissions. This prunes the entire MCP tool surface from each subagent's context (the biggest saving, since it would otherwise load once per agent) and structurally enforces that reviewers never write, fix, or post — only the orchestrator does.
-
-## Files
-
-- `.claude-plugin/plugin.json` — Claude Code plugin metadata.
-- `commands/review.md` — Claude orchestrator shell.
-- `agents/*.md` — Claude reviewer agent shells.
-- `.codex-plugin/plugin.json` — Codex plugin metadata.
-- `.cursor-plugin/plugin.json` — Cursor plugin metadata.
-- `skills/parallel-review/SKILL.md` — shared orchestrator workflow.
-- `skills/parallel-review/references/` — shared contract, scoring, actions, harness adapters, and specialist prompts.
-- `scripts/validate_codex_reviewer.py` — deterministic multi-harness reviewer bundle validation.
-- `opencode/agents/reviewer.md` — opencode orchestrator primary agent shell.
-- `opencode/agents/*.md` — opencode reviewer subagent shells.
-- `opencode/commands/parallel-review.md` — opencode orchestrator command shell.
