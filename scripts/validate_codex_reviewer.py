@@ -13,13 +13,10 @@ import yaml
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PLUGIN_ROOT.parents[1]
 SKILL_ROOT = PLUGIN_ROOT / "skills" / "parallel-review"
 LEGACY_SKILL_ROOT = PLUGIN_ROOT / "skills" / "review-pr"
-MARKETPLACE_PATH = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
 CURSOR_MANIFEST = PLUGIN_ROOT / ".cursor-plugin" / "plugin.json"
-CURSOR_MARKETPLACE = REPO_ROOT / ".cursor-plugin" / "marketplace.json"
-INSTALL_CURSOR = REPO_ROOT / "install-cursor.sh"
+INSTALL_OPENCODE = PLUGIN_ROOT / "install-opencode.sh"
 
 HARNESS_REFS = ("codex.md", "cursor.md", "claude-code.md", "opencode.md")
 MAX_SHELL_BODY_CHARS = 1200
@@ -34,9 +31,7 @@ REQUIRED_PATHS = (
     SKILL_ROOT / "references" / "reviewer-contract.md",
     SKILL_ROOT / "references" / "scoring.md",
     SKILL_ROOT / "references" / "github-actions.md",
-    MARKETPLACE_PATH,
-    CURSOR_MARKETPLACE,
-    INSTALL_CURSOR,
+    INSTALL_OPENCODE,
     OPENCODE_SKILLS_LINK,
     *tuple(SKILL_ROOT / "references" / name for name in HARNESS_REFS),
 )
@@ -151,7 +146,8 @@ def validate_domain_reviewer_wiring(text: str, skill_path: Path, errors: list[st
         "**Springa** — basename contains `Springa`",
         "**Garmin/Connect IQ** — basename contains `garmin`",
         "**Frontload** — basename is `frontload`",
-        "**Agent Plugins** — basename is `agent-plugins`",
+        "**Agent Plugins** — repo contains `.agents/plugins/marketplace.json`",
+        "root `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` manifests",
         "Domain reviewers run at Standard and Deep, never Quick.",
         "### Test Reviewer at Standard depth",
         "Skip Test Reviewer at Standard when the scoped diff is exclusively Low-tier",
@@ -208,73 +204,22 @@ def validate_cursor_manifest(errors: list[str]) -> None:
     require(manifest.get("skills") == "./skills/", f"{CURSOR_MANIFEST}: skills must be ./skills/", errors)
 
 
-def validate_marketplace(errors: list[str]) -> None:
-    if not MARKETPLACE_PATH.exists():
+def validate_install_opencode(errors: list[str]) -> None:
+    if not INSTALL_OPENCODE.exists():
         return
-    marketplace = load_json(MARKETPLACE_PATH, errors)
-    require(marketplace.get("name") == "agent-plugins", f"{MARKETPLACE_PATH}: unexpected name", errors)
-    entries = marketplace.get("plugins")
-    require(isinstance(entries, list), f"{MARKETPLACE_PATH}: plugins must be an array", errors)
-    if not isinstance(entries, list):
-        return
-    for index, entry in enumerate(entries):
-        require(isinstance(entry, dict), f"{MARKETPLACE_PATH}: plugins[{index}] must be an object", errors)
-    reviewer = next((entry for entry in entries if isinstance(entry, dict) and entry.get("name") == "reviewer"), None)
-    require(reviewer is not None, f"{MARKETPLACE_PATH}: missing reviewer entry", errors)
-    if not isinstance(reviewer, dict):
-        return
-    require(
-        reviewer.get("source") == {"source": "local", "path": "./plugins/reviewer"},
-        f"{MARKETPLACE_PATH}: reviewer source must be ./plugins/reviewer",
-        errors,
-    )
-    policy = reviewer.get("policy")
-    require(
-        policy == {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-        f"{MARKETPLACE_PATH}: reviewer policy is invalid",
-        errors,
-    )
-
-
-def validate_cursor_marketplace(errors: list[str]) -> None:
-    if not CURSOR_MARKETPLACE.exists():
-        return
-    marketplace = load_json(CURSOR_MARKETPLACE, errors)
-    require(marketplace.get("name") == "agent-plugins", f"{CURSOR_MARKETPLACE}: unexpected name", errors)
-    entries = marketplace.get("plugins")
-    require(isinstance(entries, list), f"{CURSOR_MARKETPLACE}: plugins must be an array", errors)
-    if not isinstance(entries, list):
-        return
-    names = {entry.get("name") for entry in entries if isinstance(entry, dict)}
-    require("reviewer" in names, f"{CURSOR_MARKETPLACE}: missing reviewer entry", errors)
-    require("shipwright" in names, f"{CURSOR_MARKETPLACE}: missing shipwright entry", errors)
-    reviewer = next((entry for entry in entries if isinstance(entry, dict) and entry.get("name") == "reviewer"), None)
-    if isinstance(reviewer, dict):
-        require(
-            reviewer.get("source") == "./plugins/reviewer",
-            f"{CURSOR_MARKETPLACE}: reviewer source must be ./plugins/reviewer",
-            errors,
-        )
-
-
-def validate_install_cursor(errors: list[str]) -> None:
-    if not INSTALL_CURSOR.exists():
-        return
-    mode = INSTALL_CURSOR.stat().st_mode
-    require(mode & stat.S_IXUSR, f"{INSTALL_CURSOR}: must be executable", errors)
-    text = INSTALL_CURSOR.read_text(encoding="utf-8")
+    mode = INSTALL_OPENCODE.stat().st_mode
+    require(mode & stat.S_IXUSR, f"{INSTALL_OPENCODE}: must be executable", errors)
+    text = INSTALL_OPENCODE.read_text(encoding="utf-8")
     for marker in (
-        "CURSOR_PLUGINS_LOCAL",
-        "Refusing to install",
-        "is not a plugin directory or symlink",
-        'cp -R "$src" "$dest"',
-        "pwd -P",
-        "is_available_plugin",
-        "assert_dest_under_plugins",
-        "not an available Cursor plugin name",
-        "is not installed at",
+        'PLUGIN_SOURCE="$SCRIPT_DIR/opencode"',
+        'GLOBAL_TARGET="${HOME}/.config/opencode"',
+        'PROJECT_TARGET="$(pwd)/.opencode"',
+        "install|uninstall|list",
+        "prune_stale_links",
+        "is_owned_link",
+        "skip $dest",
     ):
-        require(marker in text, f"{INSTALL_CURSOR}: missing install safety marker {marker!r}", errors)
+        require(marker in text, f"{INSTALL_OPENCODE}: missing install safety marker {marker!r}", errors)
 
 
 def validate_skill(errors: list[str]) -> None:
@@ -572,7 +517,7 @@ def validate_thin_shells(errors: list[str]) -> None:
     if OPENCODE_SKILLS_LINK.exists() or OPENCODE_SKILLS_LINK.is_symlink():
         require(
             OPENCODE_SKILLS_LINK.is_symlink() and OPENCODE_SKILLS_LINK.resolve() == (PLUGIN_ROOT / "skills").resolve(),
-            f"{OPENCODE_SKILLS_LINK}: must symlink to plugins/reviewer/skills",
+            f"{OPENCODE_SKILLS_LINK}: must symlink to standalone skills",
             errors,
         )
 
@@ -601,6 +546,11 @@ def validate_thin_shells(errors: list[str]) -> None:
                 errors,
             )
             require("realpath" in text or "os.path.realpath" in text, f"{path}: must resolve install symlink", errors)
+            require(
+                "*/opencode/commands/parallel-review.md)" in text,
+                f"{path}: must use standalone command suffix",
+                errors,
+            )
             require("~/.config/opencode" in text or "${HOME}/.config/opencode" in text, f"{path}: must use global install path", errors)
             require("$(pwd)/.opencode" not in text, f"{path}: must not trust repo-local .opencode", errors)
             require(
@@ -738,9 +688,8 @@ def validate_placeholders(errors: list[str]) -> None:
     roots = [
         PLUGIN_ROOT / ".codex-plugin",
         PLUGIN_ROOT / ".cursor-plugin",
+        PLUGIN_ROOT / "opencode",
         SKILL_ROOT,
-        REPO_ROOT / ".agents" / "plugins",
-        REPO_ROOT / ".cursor-plugin",
     ]
     for root in roots:
         if not root.exists():
@@ -760,9 +709,7 @@ def main() -> int:
         require(path.exists(), f"{path}: required path is missing", errors)
     validate_manifest(errors)
     validate_cursor_manifest(errors)
-    validate_marketplace(errors)
-    validate_cursor_marketplace(errors)
-    validate_install_cursor(errors)
+    validate_install_opencode(errors)
     validate_skill(errors)
     validate_harness_adapters(errors)
     validate_reviewers(errors)

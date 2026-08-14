@@ -136,7 +136,7 @@ arbitrary changed-text mentions. Use the basename of the git repository root
 - **Springa** — basename contains `Springa`. Dispatch `springa-api.md` and `springa-react.md`.
 - **Garmin/Connect IQ** — basename contains `garmin`. Dispatch `garmin-ciq.md`.
 - **Frontload** — basename is `frontload`, or a root package manifest identifies the project as `frontload`. Dispatch `frontload-core.md` and `frontload-integration.md`.
-- **Agent Plugins** — basename is `agent-plugins`, or the repo contains `.agents/plugins/marketplace.json` and `plugins/reviewer/`. Dispatch `agent-plugins.md`.
+- **Agent Plugins** — repo contains `.agents/plugins/marketplace.json` (thin catalog), or root `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` manifests (standalone plugin). Dispatch `agent-plugins.md`.
 - **Generic** — anything else. No domain reviewer.
 
 Domain reviewers run at Standard and Deep, never Quick.

@@ -19,7 +19,7 @@ f="${HOME}/.config/opencode/commands/parallel-review.md"
 if [ -L "$f" ]; then
   real=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$f")
   case "$real" in
-    */plugins/reviewer/opencode/commands/parallel-review.md)
+    */opencode/commands/parallel-review.md)
       candidate=$(cd "$(dirname "$real")/../../skills/parallel-review" && pwd)
       if [ -f "$candidate/SKILL.md" ] && [ -d "$candidate/references/reviewers" ]; then
         SHARED_ROOT="$candidate"
@@ -28,7 +28,7 @@ if [ -L "$f" ]; then
   esac
 fi
 if [ -z "$SHARED_ROOT" ]; then
-  echo "Could not resolve shared parallel-review skill root from ~/.config/opencode. Run ./install-opencode.sh install reviewer first." >&2
+  echo "Could not resolve shared parallel-review skill root from ~/.config/opencode. Run ./install-opencode.sh install first." >&2
   exit 1
 fi
 printf 'SHARED_ROOT=%s\n' "$SHARED_ROOT"

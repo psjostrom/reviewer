@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import io
 import importlib.util
+import json
 import os
 import subprocess
 import tempfile
@@ -18,8 +19,8 @@ SPEC = importlib.util.spec_from_file_location("validate_codex_reviewer", SCRIPT_
 assert SPEC is not None and SPEC.loader is not None
 VALIDATOR = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VALIDATOR)
-REPO_ROOT = VALIDATOR.REPO_ROOT
-INSTALL_CURSOR = REPO_ROOT / "install-cursor.sh"
+PLUGIN_ROOT = VALIDATOR.PLUGIN_ROOT
+INSTALL_OPENCODE = PLUGIN_ROOT / "install-opencode.sh"
 
 
 class DomainReviewerWiringTests(unittest.TestCase):
@@ -48,6 +49,13 @@ class DomainReviewerWiringTests(unittest.TestCase):
 
     def test_rejects_missing_harness_transport_split(self) -> None:
         text = self.skill_text.replace("**Codex / Cursor:** inline both into the child prompt", "inline always")
+        self.assertTrue(self.validate(text))
+
+    def test_rejects_missing_standalone_plugin_detection(self) -> None:
+        text = self.skill_text.replace(
+            ", or root `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` manifests (standalone plugin)",
+            "",
+        )
         self.assertTrue(self.validate(text))
 
 
@@ -317,77 +325,79 @@ class ThinShellTests(unittest.TestCase):
             path.write_text(original, encoding="utf-8")
 
 
-class CursorPackagingTests(unittest.TestCase):
-    def test_accepts_cursor_manifest_and_marketplace(self) -> None:
-        errors: list[str] = []
-        VALIDATOR.validate_cursor_manifest(errors)
-        VALIDATOR.validate_cursor_marketplace(errors)
-        VALIDATOR.validate_install_cursor(errors)
-        self.assertEqual(errors, [])
-
-    def test_install_cursor_copy_refuse_and_uninstall(self) -> None:
+class OpenCodeInstallTests(unittest.TestCase):
+    def test_global_install_and_uninstall_only_touch_owned_links(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            env = {**os.environ, "CURSOR_PLUGINS_LOCAL": tmp}
+            home = Path(tmp)
+            target = home / ".config" / "opencode"
+            foreign = target / "commands" / "foreign.md"
+            foreign.parent.mkdir(parents=True)
+            foreign.symlink_to(home / "foreign.md")
+            env = {**os.environ, "HOME": str(home)}
+
             install = subprocess.run(
-                [str(INSTALL_CURSOR), "install", "reviewer"],
-                cwd=REPO_ROOT,
+                [str(INSTALL_OPENCODE), "install"],
+                cwd=PLUGIN_ROOT,
                 env=env,
                 capture_output=True,
                 text=True,
                 check=False,
             )
             self.assertEqual(install.returncode, 0, install.stderr)
-            dest = Path(tmp) / "reviewer"
-            self.assertTrue(dest.is_dir())
-            self.assertFalse(dest.is_symlink())
-            self.assertTrue((dest / ".cursor-plugin" / "plugin.json").is_file())
-
-            refuse_dir = Path(tmp) / "blocked"
-            refuse_dir.mkdir()
-            (refuse_dir / "reviewer").mkdir()
-            refuse = subprocess.run(
-                [str(INSTALL_CURSOR), "install", "reviewer"],
-                cwd=REPO_ROOT,
-                env={**os.environ, "CURSOR_PLUGINS_LOCAL": str(refuse_dir)},
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertNotEqual(refuse.returncode, 0)
-            self.assertIn("Refusing to install", refuse.stdout + refuse.stderr)
-
-            traversal = subprocess.run(
-                [str(INSTALL_CURSOR), "install", "../reviewer"],
-                cwd=REPO_ROOT,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertNotEqual(traversal.returncode, 0)
-            self.assertIn("not an available Cursor plugin name", traversal.stdout + traversal.stderr)
-
-            missing = subprocess.run(
-                [str(INSTALL_CURSOR), "uninstall", "reviewer"],
-                cwd=REPO_ROOT,
-                env={**os.environ, "CURSOR_PLUGINS_LOCAL": str(Path(tmp) / "missing-local")},
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            self.assertNotEqual(missing.returncode, 0)
-            self.assertIn("is not installed at", missing.stdout + missing.stderr)
+            self.assertTrue((target / "agents" / "reviewer.md").is_symlink())
+            self.assertTrue((target / "commands" / "parallel-review.md").is_symlink())
 
             uninstall = subprocess.run(
-                [str(INSTALL_CURSOR), "uninstall", "reviewer"],
-                cwd=REPO_ROOT,
+                [str(INSTALL_OPENCODE), "uninstall"],
+                cwd=PLUGIN_ROOT,
                 env=env,
                 capture_output=True,
                 text=True,
                 check=False,
             )
             self.assertEqual(uninstall.returncode, 0, uninstall.stderr)
-            self.assertFalse(dest.exists())
+            self.assertFalse((target / "agents" / "reviewer.md").exists())
+            self.assertFalse((target / "commands" / "parallel-review.md").exists())
+            self.assertTrue(foreign.is_symlink())
+
+    def test_rejects_monorepo_command_suffix(self) -> None:
+        path = PLUGIN_ROOT / "opencode" / "commands" / "parallel-review.md"
+        original = path.read_text(encoding="utf-8")
+        try:
+            path.write_text(
+                original.replace(
+                    "*/opencode/commands/parallel-review.md)",
+                    "*/plugins/reviewer/opencode/commands/parallel-review.md)",
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            VALIDATOR.validate_thin_shells(errors)
+            self.assertTrue(any("standalone command suffix" in error for error in errors))
+        finally:
+            path.write_text(original, encoding="utf-8")
+
+
+class StandalonePackagingTests(unittest.TestCase):
+    def test_manifests_name_standalone_repository(self) -> None:
+        expected = "https://github.com/psjostrom/reviewer"
+        for path in (
+            PLUGIN_ROOT / ".codex-plugin" / "plugin.json",
+            PLUGIN_ROOT / ".cursor-plugin" / "plugin.json",
+        ):
+            self.assertEqual(
+                json.loads(path.read_text(encoding="utf-8")).get("repository"),
+                expected,
+            )
+
+    def test_domain_wiring_accepts_catalog_and_standalone_roots(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_domain_reviewer_wiring(
+            VALIDATOR.SKILL_ROOT.joinpath("SKILL.md").read_text(encoding="utf-8"),
+            VALIDATOR.SKILL_ROOT / "SKILL.md",
+            errors,
+        )
+        self.assertEqual(errors, [])
 
 
 class ValidatorOutputTests(unittest.TestCase):

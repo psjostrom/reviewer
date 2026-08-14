@@ -12,7 +12,7 @@ Never load shared reviewer files relative to the reviewed repository. Resolve `$
 
 The thin command shell is `opencode/commands/parallel-review.md`. It parses opencode-specific flags, then you execute the shared workflow.
 
-`install-opencode.sh` symlinks `plugins/reviewer/opencode/` (including `skills` → `../skills`) into `~/.config/opencode/`. Shared files are **not** in the reviewed repository. Stop with an install instruction if `$SHARED_ROOT` cannot be resolved from the trusted global symlink.
+`install-opencode.sh` symlinks this repository's `opencode/` directory (including `skills` → `../skills`) into `~/.config/opencode/`. Shared files are **not** in the reviewed repository. Stop with `./install-opencode.sh install` if `$SHARED_ROOT` cannot be resolved from the trusted global symlink.
 
 Reviewer agent frontmatter must set `external_directory: allow` so `$SHARED_ROOT` reads succeed outside the reviewed checkout. Keep specialist `edit: deny` and other write-denials.
 

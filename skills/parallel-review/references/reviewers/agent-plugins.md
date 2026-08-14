@@ -4,16 +4,16 @@ Apply `../reviewer-contract.md`. Work read-only.
 
 ## Scope
 
-Review this `agent-plugins` repository's plugin surfaces and packaging for
+Review this plugin repository's plugin surfaces and packaging for
 defects that would break installation, discovery, invocation, or cross-agent
 parity:
 
 - Claude Code plugin manifests, command frontmatter, agent frontmatter, and
   `reviewer:*` subagent names;
-- Codex marketplace entries, manifests, skill metadata, reference paths, and
-  validator expectations;
-- Cursor marketplace entries, `.cursor-plugin` manifests, `install-cursor.sh`
-  symlink safety, and `references/cursor.md` Task dispatch wiring;
+- Codex catalog entries when present, root manifests, skill metadata, reference
+  paths, and validator expectations;
+- Cursor listings, `.cursor-plugin` manifests, and `references/cursor.md` Task
+  dispatch wiring;
 - opencode install script behavior, discovery directories, agent permissions
   (including `external_directory` when shared prompts live outside the
   reviewed checkout), command frontmatter, and bare subagent names;
@@ -21,7 +21,7 @@ parity:
   behavior is intended to match;
 - domain detection and dispatch tables that must include every supported
   reviewer role;
-- relative repository paths in manifests and marketplace entries;
+- repository URLs and relative paths in manifests and catalog entries;
 - safe installation and removal behavior that does not overwrite unrelated user
   configuration or leak machine-specific paths.
 

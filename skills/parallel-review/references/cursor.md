@@ -35,7 +35,7 @@ Rules:
 7. Launch every selected reviewer in one parallel batch.
 8. If `Task` or subagents are unavailable, disclose that the specialist panel cannot run and ask whether to continue as a single-agent review. Do not silently simulate multiple reviewers.
 9. If one child fails, retry that role once with a narrower prompt (same Composer model); if it still fails, disclose the missing coverage.
-10. Do not assume `./install-cursor.sh list` points at the checkout under review. The live install symlink may target another clone or worktree; load skill/adapter text from this skill's resolved `references/...` paths for the active review revision.
+10. Do not assume Cursor's installed plugin checkout is the review target. Load skill/adapter text from this skill's resolved `references/...` paths for the active review revision.
 
 Resolve every `references/...` path from the directory containing this skill's `SKILL.md` for the revision being executed.
 
