@@ -19,8 +19,13 @@ Start a new task, then invoke `$parallel-review`.
 
 ### Claude Code
 
-Install `reviewer` from the Claude marketplace, then invoke `/reviewer:review`
-or `/r`.
+Install from the Agent Plugins marketplace, then invoke `/reviewer:review` or
+`/r`:
+
+```sh
+claude plugin marketplace add psjostrom/agent-plugins
+claude plugin install reviewer@agent-plugins
+```
 
 ### Cursor
 

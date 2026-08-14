@@ -360,6 +360,89 @@ class OpenCodeInstallTests(unittest.TestCase):
             self.assertFalse((target / "commands" / "parallel-review.md").exists())
             self.assertTrue(foreign.is_symlink())
 
+    def test_project_install_list_and_uninstall(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            env = {**os.environ, "HOME": str(Path(tmp) / "home")}
+
+            install = subprocess.run(
+                [str(INSTALL_OPENCODE), "install", "--project"],
+                cwd=project,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(install.returncode, 0, install.stderr)
+            self.assertTrue((project / ".opencode" / "agents" / "reviewer.md").is_symlink())
+
+            listed = subprocess.run(
+                [str(INSTALL_OPENCODE), "list", "--project"],
+                cwd=project,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(listed.returncode, 0, listed.stderr)
+            self.assertIn("Reviewer installed:", listed.stdout)
+
+            uninstall = subprocess.run(
+                [str(INSTALL_OPENCODE), "uninstall", "--project"],
+                cwd=project,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(uninstall.returncode, 0, uninstall.stderr)
+            self.assertFalse((project / ".opencode" / "agents" / "reviewer.md").exists())
+
+    def test_rejects_invalid_arguments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            for argv in (("install", "reviewer"), ("list", "--project", "extra"), ("unknown",)):
+                result = subprocess.run(
+                    [str(INSTALL_OPENCODE), *argv],
+                    cwd=PLUGIN_ROOT,
+                    env={**os.environ, "HOME": tmp},
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertNotEqual(result.returncode, 0, argv)
+
+    def test_preserves_traversal_target_at_reviewer_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            command = home / ".config" / "opencode" / "commands" / "parallel-review.md"
+            command.parent.mkdir(parents=True)
+            foreign_target = PLUGIN_ROOT / "opencode" / ".." / ".." / "foreign.md"
+            command.symlink_to(foreign_target)
+            env = {**os.environ, "HOME": str(home)}
+
+            install = subprocess.run(
+                [str(INSTALL_OPENCODE), "install"],
+                cwd=PLUGIN_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(install.returncode, 0, install.stderr)
+            self.assertEqual(command.readlink(), foreign_target)
+
+            uninstall = subprocess.run(
+                [str(INSTALL_OPENCODE), "uninstall"],
+                cwd=PLUGIN_ROOT,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(uninstall.returncode, 0, uninstall.stderr)
+            self.assertEqual(command.readlink(), foreign_target)
+
     def test_rejects_monorepo_command_suffix(self) -> None:
         path = PLUGIN_ROOT / "opencode" / "commands" / "parallel-review.md"
         original = path.read_text(encoding="utf-8")

@@ -16,10 +16,30 @@ EOF
 }
 
 is_owned_link() {
-  link="$1"
-  [ -L "$link" ] || return 1
-  case "$(readlink "$link")" in
-    "$PLUGIN_SOURCE"/*) return 0 ;;
+  owned_source_dir="$1"
+  owned_link="$2"
+  [ -L "$owned_link" ] || return 1
+  owned_link_target="$(readlink "$owned_link")"
+  case "$owned_link_target" in
+    /*) ;;
+    *) owned_link_target="$(dirname "$owned_link")/$owned_link_target" ;;
+  esac
+  owned_hops=0
+  while [ -L "$owned_link_target" ]; do
+    owned_hops=$((owned_hops + 1))
+    [ "$owned_hops" -le 40 ] || return 1
+    owned_target_link="$(readlink "$owned_link_target")"
+    case "$owned_target_link" in
+      /*) owned_link_target="$owned_target_link" ;;
+      *) owned_link_target="$(dirname "$owned_link_target")/$owned_target_link" ;;
+    esac
+  done
+  owned_target_dir="$(dirname "$owned_link_target")"
+  [ -d "$owned_target_dir" ] || return 1
+  owned_canonical_source="$(cd "$owned_source_dir" && pwd -P)"
+  owned_canonical_target="$(cd "$owned_target_dir" && pwd -P)/$(basename "$owned_link_target")"
+  case "$owned_canonical_target" in
+    "$owned_canonical_source"/*) return 0 ;;
   esac
   return 1
 }
@@ -32,7 +52,7 @@ prune_stale_links() {
     [ -d "$target/$category" ] || continue
     for link in "$target/$category"/*; do
       [ -L "$link" ] || continue
-      if is_owned_link "$link" && [ ! -e "$link" ]; then
+      if is_owned_link "$source_dir" "$link" && [ ! -e "$link" ]; then
         rm "$link"
         echo "  pruned stale $link"
       fi
@@ -51,7 +71,7 @@ link_plugin() {
       [ -e "$source" ] || continue
       dest="$target/$category/$(basename "$source")"
       if [ -e "$dest" ] || [ -L "$dest" ]; then
-        if ! is_owned_link "$dest"; then
+        if ! is_owned_link "$source_dir" "$dest"; then
           echo "  skip $dest — exists and is not Reviewer-owned"
           continue
         fi
@@ -72,7 +92,7 @@ unlink_plugin() {
     for source in "$source_dir"/*; do
       [ -e "$source" ] || continue
       link="$target/$category/$(basename "$source")"
-      if is_owned_link "$link"; then
+      if is_owned_link "$source_dir" "$link"; then
         rm "$link"
         echo "  removed $link"
       fi
@@ -83,7 +103,7 @@ unlink_plugin() {
 
 list_plugin() {
   target="$1"
-  if is_owned_link "$target/agents/reviewer.md"; then
+  if is_owned_link "$PLUGIN_SOURCE/agents" "$target/agents/reviewer.md"; then
     echo "Reviewer installed: $target"
   else
     echo "Reviewer not installed: $target"
