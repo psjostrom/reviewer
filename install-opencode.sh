@@ -69,7 +69,16 @@ link_plugin() {
     mkdir -p "$target/$category"
     for source in "$source_dir"/*; do
       [ -e "$source" ] || continue
-      dest="$target/$category/$(basename "$source")"
+      name="$(basename "$source")"
+      dest="$target/$category/$name"
+      if [ -L "$dest" ]; then
+        case "$(readlink "$dest")" in
+          */agent-plugins/plugins/reviewer/opencode/"$category"/"$name")
+            rm "$dest"
+            echo "  removed legacy $dest"
+            ;;
+        esac
+      fi
       if [ -e "$dest" ] || [ -L "$dest" ]; then
         if ! is_owned_link "$source_dir" "$dest"; then
           echo "  skip $dest — exists and is not Reviewer-owned"

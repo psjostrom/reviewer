@@ -29,8 +29,9 @@ claude plugin install reviewer@agent-plugins
 
 ### Cursor
 
-Install [`psjostrom/reviewer`](https://github.com/psjostrom/reviewer) directly
-as a standalone Cursor plugin. Reload Cursor, then invoke:
+The standalone [`psjostrom/reviewer`](https://github.com/psjostrom/reviewer)
+Cursor marketplace listing is pending review and is not yet available to
+install. After acceptance, reload Cursor and invoke:
 
 ```text
 use parallel-review to review PR #6

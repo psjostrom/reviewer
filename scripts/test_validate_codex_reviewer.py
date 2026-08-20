@@ -326,6 +326,66 @@ class ThinShellTests(unittest.TestCase):
 
 
 class OpenCodeInstallTests(unittest.TestCase):
+    def test_install_only_migrates_exact_legacy_links_in_every_scope_and_category(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            home = root / "home"
+            project = root / "project"
+            project.mkdir()
+            env = {**os.environ, "HOME": str(home)}
+
+            for scope, target, cwd, argv in (
+                (
+                    "global",
+                    home / ".config" / "opencode",
+                    PLUGIN_ROOT,
+                    ("install",),
+                ),
+                (
+                    "project",
+                    project / ".opencode",
+                    project,
+                    ("install", "--project"),
+                ),
+            ):
+                links = (
+                    ("agents", "reviewer.md"),
+                    ("commands", "parallel-review.md"),
+                    ("skills", "parallel-review"),
+                )
+                for category, name in links:
+                    link = target / category / name
+                    link.parent.mkdir(parents=True, exist_ok=True)
+                    link.symlink_to(
+                        root
+                        / "agent-plugins"
+                        / "plugins"
+                        / "reviewer"
+                        / "opencode"
+                        / category
+                        / name
+                    )
+
+                foreign = target / "agents" / "bug-hunter.md"
+                foreign_target = PLUGIN_ROOT / "opencode" / ".." / ".." / f"{scope}-foreign.md"
+                foreign.symlink_to(foreign_target)
+
+                install = subprocess.run(
+                    [str(INSTALL_OPENCODE), *argv],
+                    cwd=cwd,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(install.returncode, 0, install.stderr)
+                for category, name in links:
+                    self.assertEqual(
+                        (target / category / name).readlink(),
+                        PLUGIN_ROOT / "opencode" / category / name,
+                    )
+                self.assertEqual(foreign.readlink(), foreign_target)
+
     def test_global_install_and_uninstall_only_touch_owned_links(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
