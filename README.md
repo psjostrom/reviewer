@@ -1,10 +1,22 @@
 # Reviewer
 
-Risk-based parallel code review for Claude Code, Codex, Cursor, and opencode.
+Risk-based parallel code review for Claude Code, Codex, Cursor, opencode, and Antigravity.
 It dispatches specialist reviewers, deduplicates findings, and keeps initial
 review read-only until you select an action.
 
 ## Install and use
+
+### Antigravity
+
+Install directly from GitHub or local directory:
+
+```sh
+agy plugin install https://github.com/psjostrom/reviewer
+# Or from local clone:
+agy plugin install .
+```
+
+Invoke `/parallel-review` (or `use parallel-review`). Antigravity dispatches all 13 reviewer roles concurrently via `invoke_subagent` using Gemini Flash floor.
 
 ### Codex
 
@@ -97,9 +109,11 @@ Run before changes land:
 ```sh
 python3 scripts/validate_codex_reviewer.py
 python3 -m unittest scripts/test_validate_codex_reviewer.py
+python3 -m json.tool plugin.json >/dev/null
 python3 -m json.tool .claude-plugin/plugin.json >/dev/null
 python3 -m json.tool .codex-plugin/plugin.json >/dev/null
 python3 -m json.tool .cursor-plugin/plugin.json >/dev/null
+agy plugin validate .
 test -L opencode/skills
 git diff --check
 ```

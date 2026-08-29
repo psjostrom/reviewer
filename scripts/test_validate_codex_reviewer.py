@@ -48,7 +48,7 @@ class DomainReviewerWiringTests(unittest.TestCase):
         self.assertTrue(self.validate(text))
 
     def test_rejects_missing_harness_transport_split(self) -> None:
-        text = self.skill_text.replace("**Codex / Cursor:** inline both into the child prompt", "inline always")
+        text = self.skill_text.replace("**Codex / Cursor / Antigravity:** inline both into the child prompt", "inline always")
         self.assertTrue(self.validate(text))
 
     def test_rejects_missing_standalone_plugin_detection(self) -> None:
@@ -541,6 +541,19 @@ class StandalonePackagingTests(unittest.TestCase):
             errors,
         )
         self.assertEqual(errors, [])
+
+
+class AntigravityPackagingTests(unittest.TestCase):
+    def test_antigravity_manifest_present_and_valid(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_antigravity_manifest(errors)
+        self.assertEqual(errors, [])
+
+    def test_antigravity_adapter_present_and_valid(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_harness_adapters(errors)
+        self.assertEqual(errors, [])
+
 
 
 class ValidatorOutputTests(unittest.TestCase):

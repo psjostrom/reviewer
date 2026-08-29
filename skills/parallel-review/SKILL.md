@@ -155,13 +155,14 @@ Identify the active harness and read the matching adapter completely:
 - Cursor: `references/cursor.md`
 - Claude Code: `references/claude-code.md`
 - opencode: `references/opencode.md`
+- Antigravity: `references/antigravity.md`
 
 Follow that adapter for parallel child dispatch, including its **child model floor** and **prompt transport**. Shared requirements for every harness:
 
 1. Spawn one child per selected reviewer in one parallel batch.
 2. Apply the active harness adapter's required child model/effort (mid-tier workers by default — not frontier controller models) whenever the live schema allows explicit selection.
 3. Deliver the complete common reviewer contract and exactly one specialist reviewer prompt by the harness transport:
-   - **Codex / Cursor:** inline both into the child prompt (plus mode/target, summary, tiered files, guidance, and patch or retrieval instructions). Prefer retrieval instructions over stuffing multi-thousand-line patches into every child.
+   - **Codex / Cursor / Antigravity:** inline both into the child prompt (plus mode/target, summary, tiered files, guidance, and patch or retrieval instructions). Prefer retrieval instructions over stuffing multi-thousand-line patches into every child.
    - **Claude Code / opencode:** pass orchestration context only (mode/target, summary, tiered files, guidance, patch or retrieval instructions). The thin specialist shell loads contract + role via `${CLAUDE_PLUGIN_ROOT}` or the absolute `$SHARED_ROOT` the orchestrator injects. Do not re-inline those bodies in the child prompt.
 4. Every child must still receive the review mode and target revision, the one-line change summary, changed files with risk tiers, applicable repository guidance, the relevant patch or precise read-only retrieval instructions, and a requirement to return only the structured findings contract.
 5. Do not give reviewers write tasks.
