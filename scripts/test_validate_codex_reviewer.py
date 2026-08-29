@@ -554,6 +554,19 @@ class AntigravityPackagingTests(unittest.TestCase):
         VALIDATOR.validate_harness_adapters(errors)
         self.assertEqual(errors, [])
 
+    def test_rejects_antigravity_manifest_with_version(self) -> None:
+        manifest_path = VALIDATOR.ANTIGRAVITY_MANIFEST
+        original = manifest_path.read_text(encoding="utf-8")
+        try:
+            data = json.loads(original)
+            data["version"] = "1.0.0"
+            manifest_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors: list[str] = []
+            VALIDATOR.validate_antigravity_manifest(errors)
+            self.assertTrue(any("must omit version" in error for error in errors))
+        finally:
+            manifest_path.write_text(original, encoding="utf-8")
+
 
 
 class ValidatorOutputTests(unittest.TestCase):

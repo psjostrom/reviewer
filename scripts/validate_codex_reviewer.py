@@ -212,7 +212,7 @@ def validate_antigravity_manifest(errors: list[str]) -> None:
         return
     manifest = load_json(ANTIGRAVITY_MANIFEST, errors)
     require(manifest.get("name") == "reviewer", f"{ANTIGRAVITY_MANIFEST}: name must be reviewer", errors)
-    require(manifest.get("version") == "1.1.0", f"{ANTIGRAVITY_MANIFEST}: version must be 1.1.0", errors)
+    require("version" not in manifest, f"{ANTIGRAVITY_MANIFEST}: Antigravity manifest must omit version (SHA-tracked delivery)", errors)
     require(bool(manifest.get("description")), f"{ANTIGRAVITY_MANIFEST}: description must be non-empty", errors)
 
 
