@@ -16,7 +16,7 @@ agy plugin install https://github.com/psjostrom/reviewer
 agy plugin install .
 ```
 
-Invoke `/parallel-review` (or `use parallel-review`). Antigravity dispatches specialist review subagents concurrently via `invoke_subagent` using Gemini Flash floor (up to 13 available roles depending on review depth and project domain).
+Invoke `/parallel-review` (or `use parallel-review`). Antigravity dispatches specialist review subagents concurrently via `invoke_subagent` using Gemini Flash floor (2–7 roles per run depending on review depth and repository domain, selected from 13 specialized reviewer definitions).
 
 ### Codex
 
