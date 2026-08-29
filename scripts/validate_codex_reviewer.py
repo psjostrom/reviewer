@@ -356,7 +356,11 @@ def validate_harness_adapters(errors: list[str]) -> None:
     if antigravity_path.exists():
         text = antigravity_path.read_text(encoding="utf-8")
         require("invoke_subagent" in text, f"{antigravity_path}: must document invoke_subagent dispatch", errors)
-        require("flash" in text, f"{antigravity_path}: must specify flash child model floor", errors)
+        require(
+            re.search(r'["\']?Model["\']?\s*:\s*["\']flash["\']', text) is not None,
+            f"{antigravity_path}: must specify Model: \"flash\" child model floor in dispatch",
+            errors,
+        )
 
 
 

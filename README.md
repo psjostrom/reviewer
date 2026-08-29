@@ -16,7 +16,7 @@ agy plugin install https://github.com/psjostrom/reviewer
 agy plugin install .
 ```
 
-Invoke `/parallel-review` (or `use parallel-review`). Antigravity dispatches all 13 reviewer roles concurrently via `invoke_subagent` using Gemini Flash floor.
+Invoke `/parallel-review` (or `use parallel-review`). Antigravity dispatches specialist review subagents concurrently via `invoke_subagent` using Gemini Flash floor (up to 13 available roles depending on review depth and project domain).
 
 ### Codex
 
@@ -99,7 +99,7 @@ The Codex catalog route remains unchanged.
 
 ## Development
 
-Keep all four platform surfaces aligned. Shared behavior lives in
+Keep all supported platform surfaces aligned. Shared behavior lives in
 [`skills/parallel-review/SKILL.md`](skills/parallel-review/SKILL.md); Claude and
 opencode command shells stay thin. Preserve
 [`opencode/skills`](opencode/skills) as a symlink to `../skills`.
