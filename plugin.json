@@ -1,0 +1,4 @@
+{
+  "name": "reviewer",
+  "description": "Multi-agent code review with scored issues. /parallel-review runs parallel review subagents (bug hunter, guidelines, error/edges, architecture, tests) plus project-specific domain agents for Strimma, Springa, and Garmin CIQ. Scores every issue and either fixes locally or posts inline PR comments."
+}

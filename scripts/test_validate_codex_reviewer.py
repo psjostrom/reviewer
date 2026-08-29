@@ -48,7 +48,7 @@ class DomainReviewerWiringTests(unittest.TestCase):
         self.assertTrue(self.validate(text))
 
     def test_rejects_missing_harness_transport_split(self) -> None:
-        text = self.skill_text.replace("**Codex / Cursor:** inline both into the child prompt", "inline always")
+        text = self.skill_text.replace("**Codex / Cursor / Antigravity:** inline both into the child prompt", "inline always")
         self.assertTrue(self.validate(text))
 
     def test_rejects_missing_standalone_plugin_detection(self) -> None:
@@ -541,6 +541,32 @@ class StandalonePackagingTests(unittest.TestCase):
             errors,
         )
         self.assertEqual(errors, [])
+
+
+class AntigravityPackagingTests(unittest.TestCase):
+    def test_antigravity_manifest_present_and_valid(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_antigravity_manifest(errors)
+        self.assertEqual(errors, [])
+
+    def test_antigravity_adapter_present_and_valid(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_harness_adapters(errors)
+        self.assertEqual(errors, [])
+
+    def test_rejects_antigravity_manifest_with_version(self) -> None:
+        manifest_path = VALIDATOR.ANTIGRAVITY_MANIFEST
+        original = manifest_path.read_text(encoding="utf-8")
+        try:
+            data = json.loads(original)
+            data["version"] = "1.0.0"
+            manifest_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            errors: list[str] = []
+            VALIDATOR.validate_antigravity_manifest(errors)
+            self.assertTrue(any("must omit version" in error for error in errors))
+        finally:
+            manifest_path.write_text(original, encoding="utf-8")
+
 
 
 class ValidatorOutputTests(unittest.TestCase):

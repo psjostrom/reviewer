@@ -16,9 +16,10 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = PLUGIN_ROOT / "skills" / "parallel-review"
 LEGACY_SKILL_ROOT = PLUGIN_ROOT / "skills" / "review-pr"
 CURSOR_MANIFEST = PLUGIN_ROOT / ".cursor-plugin" / "plugin.json"
+ANTIGRAVITY_MANIFEST = PLUGIN_ROOT / "plugin.json"
 INSTALL_OPENCODE = PLUGIN_ROOT / "install-opencode.sh"
 
-HARNESS_REFS = ("codex.md", "cursor.md", "claude-code.md", "opencode.md")
+HARNESS_REFS = ("codex.md", "cursor.md", "claude-code.md", "opencode.md", "antigravity.md")
 MAX_SHELL_BODY_CHARS = 1200
 MAX_ORCHESTRATOR_BODY_CHARS = 2500
 OPENCODE_SKILLS_LINK = PLUGIN_ROOT / "opencode" / "skills"
@@ -26,6 +27,7 @@ OPENCODE_SKILLS_LINK = PLUGIN_ROOT / "opencode" / "skills"
 REQUIRED_PATHS = (
     PLUGIN_ROOT / ".codex-plugin" / "plugin.json",
     CURSOR_MANIFEST,
+    ANTIGRAVITY_MANIFEST,
     SKILL_ROOT / "SKILL.md",
     SKILL_ROOT / "agents" / "openai.yaml",
     SKILL_ROOT / "references" / "reviewer-contract.md",
@@ -157,7 +159,7 @@ def validate_domain_reviewer_wiring(text: str, skill_path: Path, errors: list[st
     for marker in (
         "| Standard | No Critical files and fewer than 400 changed lines | Bug Hunter, Guidelines, Test Reviewer when source changed, all matching domain reviewers |",
         "| Deep | Any Critical file or at least 400 changed lines | All universal reviewers and all matching domain reviewers |",
-        "**Codex / Cursor:** inline both into the child prompt",
+        "**Codex / Cursor / Antigravity:** inline both into the child prompt",
         "**Claude Code / opencode:** pass orchestration context only",
     ):
         require(marker in text, f"{skill_path}: missing domain panel wiring {marker!r}", errors)
@@ -202,6 +204,17 @@ def validate_cursor_manifest(errors: list[str]) -> None:
     manifest = load_json(CURSOR_MANIFEST, errors)
     require(manifest.get("name") == "reviewer", f"{CURSOR_MANIFEST}: name must be reviewer", errors)
     require(manifest.get("skills") == "./skills/", f"{CURSOR_MANIFEST}: skills must be ./skills/", errors)
+
+
+def validate_antigravity_manifest(errors: list[str]) -> None:
+    if not ANTIGRAVITY_MANIFEST.exists():
+        errors.append(f"{ANTIGRAVITY_MANIFEST}: Antigravity plugin manifest missing")
+        return
+    manifest = load_json(ANTIGRAVITY_MANIFEST, errors)
+    require(manifest.get("name") == "reviewer", f"{ANTIGRAVITY_MANIFEST}: name must be reviewer", errors)
+    require("version" not in manifest, f"{ANTIGRAVITY_MANIFEST}: Antigravity manifest must omit version (SHA-tracked delivery)", errors)
+    require(bool(manifest.get("description")), f"{ANTIGRAVITY_MANIFEST}: description must be non-empty", errors)
+
 
 
 def validate_install_opencode(errors: list[str]) -> None:
@@ -339,6 +352,16 @@ def validate_harness_adapters(errors: list[str]) -> None:
             f"{opencode_path}: must forbid specialist SHARED_ROOT rediscovery",
             errors,
         )
+    antigravity_path = SKILL_ROOT / "references" / "antigravity.md"
+    if antigravity_path.exists():
+        text = antigravity_path.read_text(encoding="utf-8")
+        require("invoke_subagent" in text, f"{antigravity_path}: must document invoke_subagent dispatch", errors)
+        require(
+            re.search(r'["\']?Model["\']?\s*:\s*["\']flash["\']', text) is not None,
+            f"{antigravity_path}: must specify Model: \"flash\" child model floor in dispatch",
+            errors,
+        )
+
 
 
 def validate_reviewers(errors: list[str]) -> None:
@@ -709,6 +732,7 @@ def main() -> int:
         require(path.exists(), f"{path}: required path is missing", errors)
     validate_manifest(errors)
     validate_cursor_manifest(errors)
+    validate_antigravity_manifest(errors)
     validate_install_opencode(errors)
     validate_skill(errors)
     validate_harness_adapters(errors)

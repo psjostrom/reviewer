@@ -1,10 +1,22 @@
 # Reviewer
 
-Risk-based parallel code review for Claude Code, Codex, Cursor, and opencode.
+Risk-based parallel code review for Claude Code, Codex, Cursor, opencode, and Antigravity.
 It dispatches specialist reviewers, deduplicates findings, and keeps initial
 review read-only until you select an action.
 
 ## Install and use
+
+### Antigravity
+
+Install directly from GitHub or local directory:
+
+```sh
+agy plugin install https://github.com/psjostrom/reviewer
+# Or from local clone:
+agy plugin install .
+```
+
+Invoke `/parallel-review` (or `use parallel-review`). Antigravity dispatches specialist review subagents concurrently via `invoke_subagent` using Gemini Flash as the floor model (2–7 roles per run depending on review depth and repository domain, selected from 13 specialized reviewer definitions).
 
 ### Codex
 
@@ -87,7 +99,7 @@ The Codex catalog route remains unchanged.
 
 ## Development
 
-Keep all four platform surfaces aligned. Shared behavior lives in
+Keep all supported platform surfaces aligned. Shared behavior lives in
 [`skills/parallel-review/SKILL.md`](skills/parallel-review/SKILL.md); Claude and
 opencode command shells stay thin. Preserve
 [`opencode/skills`](opencode/skills) as a symlink to `../skills`.
@@ -97,9 +109,11 @@ Run before changes land:
 ```sh
 python3 scripts/validate_codex_reviewer.py
 python3 -m unittest scripts/test_validate_codex_reviewer.py
+python3 -m json.tool plugin.json >/dev/null
 python3 -m json.tool .claude-plugin/plugin.json >/dev/null
 python3 -m json.tool .codex-plugin/plugin.json >/dev/null
 python3 -m json.tool .cursor-plugin/plugin.json >/dev/null
+agy plugin validate .
 test -L opencode/skills
 git diff --check
 ```
