@@ -229,7 +229,7 @@ Verify all claims that could score above 75 through read-only inspection of targ
 
 After every selected reviewer has returned and synthesis is complete, refresh the target head. If it is unchanged, record the current base/head SHAs with `review_state.py record`, using the same mode, target, and normalized path filters used for lookup.
 
-Advance the receipt only when every unresolved finding will still be available on the next review: either there are no findings, or every unresolved finding already exists in a retrievable PR thread. Do not record findings that exist only in the current conversation; a later task or harness could not carry them forward. Also do not record incomplete panels, failed coverage, stale target heads, local working-tree reviews, explicit base comparisons, or `--since` reviews.
+Advance the receipt only when every unresolved finding will still be available on the next review: either there are no findings, or every unresolved finding already exists in a retrievable PR thread. For implicit branch reviews, record only when there are no unresolved findings. Do not record findings that exist only in the current conversation; a later task or harness could not carry them forward. Also do not record incomplete panels, failed coverage, stale target heads, local working-tree reviews, explicit base comparisons, or `--since` reviews.
 
 Receipt failure does not invalidate the review. Disclose it; the next run will safely fall back to full.
 

@@ -75,7 +75,7 @@ Inspect either scope with `./install-opencode.sh list [--project]`.
 
 Invoke `$parallel-review`, `/reviewer:review`, `/r`, or `/parallel-review`
 depending on harness. Use `--deep` for all specialists, `--quick` for universal
-reviewers only, `--full` to re-review the complete target, `--since <SHA>` to
+reviewers only, `--full` to re-review the complete target, `--since <full SHA>` to
 choose an incremental baseline for a PR or implicit branch review, and `stop
 after reporting` to prevent a follow-up action prompt. `--full` and `--since`
 are mutually exclusive. Local working-tree and explicit base reviews always use
