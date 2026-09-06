@@ -83,13 +83,13 @@ Role: Garmin Connect IQ Monkey C specialist. Focus on peak memory limits, batter
 Read [`skills/parallel-review/references/reviewers/agent-plugins.md`](reviewers/agent-plugins.md).
 Role: Cross-platform plugin consistency specialist. Focus on cross-harness manifest parity (Claude, Codex, Cursor, opencode, Antigravity) and path resolution symmetry.
 
-### 12. `frontload-core`
-Read [`skills/parallel-review/references/reviewers/frontload-core.md`](reviewers/frontload-core.md).
-Role: Frontload core business logic specialist. Focus on core invariant preservation and domain event dispatch correctness.
+### 12. `springa-native-ui`
+Read [`skills/parallel-review/references/reviewers/springa-native-ui.md`](reviewers/springa-native-ui.md).
+Role: Springa Native Expo and React Native specialist. Focus on platform-correct navigation, native UI, lifecycle, and accessibility behavior on both iOS and Android.
 
-### 13. `frontload-integration`
-Read [`skills/parallel-review/references/reviewers/frontload-integration.md`](reviewers/frontload-integration.md).
-Role: Frontload third-party integration specialist. Focus on external API boundary contracts, webhook idempotency, and retry backoff.
+### 13. `springa-native-integration`
+Read [`skills/parallel-review/references/reviewers/springa-native-integration.md`](reviewers/springa-native-integration.md).
+Role: Springa Native integration specialist. Focus on authenticated backend contracts, server-state ownership, and keeping provider and training logic on the Springa backend.
 
 ## Review Aggregation and Scoring
 

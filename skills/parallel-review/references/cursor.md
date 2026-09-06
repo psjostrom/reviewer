@@ -54,9 +54,9 @@ Load shared specialist bodies from `references/reviewers/`:
 | Strimma Medical Data Integrity | `strimma-medical.md` |
 | Springa API Contract & Schema | `springa-api.md` |
 | Springa React & Next.js Patterns | `springa-react.md` |
+| Springa Native UI & Platform | `springa-native-ui.md` |
+| Springa Native Integration | `springa-native-integration.md` |
 | Garmin/Connect IQ | `garmin-ciq.md` |
-| Frontload Core Correctness | `frontload-core.md` |
-| Frontload Integration & Safety | `frontload-integration.md` |
 | Agent Plugins Surface Parity | `agent-plugins.md` |
 
 ## Decision gate
