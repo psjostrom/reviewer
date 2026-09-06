@@ -403,6 +403,7 @@ def validate_reviewer_surface_parity(
     errors: list[str],
     expected_reviewers: set[str] | None = None,
     cursor_reviewers: set[str] | None = None,
+    antigravity_reviewers: set[str] | None = None,
 ) -> None:
     surfaces: list[tuple[str, set[str]]] = [
         ("Codex reviewer prompts", codex_reviewers),
@@ -411,6 +412,8 @@ def validate_reviewer_surface_parity(
     ]
     if cursor_reviewers is not None:
         surfaces.append(("Cursor reviewer roles", cursor_reviewers))
+    if antigravity_reviewers is not None:
+        surfaces.append(("Antigravity reviewer roles", antigravity_reviewers))
     expected = expected_reviewers or set().union(*(reviewers for _, reviewers in surfaces))
     for label, reviewers in surfaces:
         missing = sorted(expected - reviewers)
@@ -434,6 +437,7 @@ def validate_cross_platform_reviewer_parity(errors: list[str]) -> None:
         claude_reviewers=reviewer_names_in(PLUGIN_ROOT / "agents"),
         opencode_reviewers=reviewer_names_in(PLUGIN_ROOT / "opencode" / "agents", ignored={"reviewer"}),
         cursor_reviewers=reviewer_names_from_adapter(SKILL_ROOT / "references" / "cursor.md"),
+        antigravity_reviewers=reviewer_names_from_adapter(SKILL_ROOT / "references" / "antigravity.md"),
         errors=errors,
         expected_reviewers=set(REVIEWER_NAMES),
     )

@@ -114,6 +114,23 @@ class ReviewerParityTests(unittest.TestCase):
 
         self.assertIn("missing Cursor reviewer roles: springa-native-ui", errors)
 
+    def test_rejects_springa_native_reviewers_missing_from_antigravity_surface(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_reviewer_surface_parity(
+            codex_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            claude_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            opencode_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            cursor_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            antigravity_reviewers={"bug-hunter"},
+            errors=errors,
+            expected_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+        )
+
+        self.assertIn(
+            "missing Antigravity reviewer roles: springa-native-integration, springa-native-ui",
+            errors,
+        )
+
 
 class SharedCoreTests(unittest.TestCase):
     def test_accepts_harness_adapter_wiring(self) -> None:
