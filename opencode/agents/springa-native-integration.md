@@ -1,5 +1,5 @@
 ---
-description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /parallel-review instead. Reviews Frontload core output and accounting correctness.
+description: INTERNAL — invoked only by the /parallel-review orchestrator. Do not invoke directly; invoke /parallel-review instead. Reviews Springa Native backend and server-state integration.
 mode: subagent
 hidden: true
 permission:
@@ -21,6 +21,6 @@ permission:
 
 Require an absolute `SHARED_ROOT=...` line from the orchestrator Task prompt. Do not rediscover the path and do not read repository-relative skill files.
 
-Read `$SHARED_ROOT/references/reviewer-contract.md` and apply `$SHARED_ROOT/references/reviewers/frontload-core.md` completely.
+Read `$SHARED_ROOT/references/reviewer-contract.md` and apply `$SHARED_ROOT/references/reviewers/springa-native-integration.md` completely.
 
 Work read-only. Return only structured findings per the contract, or exactly `No issues found`.

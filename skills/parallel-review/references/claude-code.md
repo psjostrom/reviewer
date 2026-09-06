@@ -54,9 +54,9 @@ Dispatch via Claude Code's `Agent` tool with `subagent_type` values from this ta
 | Strimma Medical Data Integrity | `reviewer:strimma-medical` | `strimma-medical.md` |
 | Springa API Contract & Schema | `reviewer:springa-api` | `springa-api.md` |
 | Springa React & Next.js Patterns | `reviewer:springa-react` | `springa-react.md` |
+| Springa Native UI & Platform | `reviewer:springa-native-ui` | `springa-native-ui.md` |
+| Springa Native Integration | `reviewer:springa-native-integration` | `springa-native-integration.md` |
 | Garmin/Connect IQ | `reviewer:garmin-ciq` | `garmin-ciq.md` |
-| Frontload Core Correctness | `reviewer:frontload-core` | `frontload-core.md` |
-| Frontload Integration & Safety | `reviewer:frontload-integration` | `frontload-integration.md` |
 | Agent Plugins Surface Parity | `reviewer:agent-plugins` | `agent-plugins.md` |
 
 Launch every selected reviewer in one parallel response. Pass the child model from the floor above (sonnet unless `--opus`).

@@ -45,11 +45,11 @@ REVIEWER_NAMES = {
     "architecture",
     "bug-hunter",
     "error-edges",
-    "frontload-core",
-    "frontload-integration",
     "garmin-ciq",
     "guidelines",
     "springa-api",
+    "springa-native-integration",
+    "springa-native-ui",
     "springa-react",
     "strimma-coroutine",
     "strimma-medical",
@@ -61,11 +61,11 @@ REVIEWER_MARKERS = {
     "architecture": ("workaround", "comments"),
     "bug-hunter": ("wrong results", "Never claim"),
     "error-edges": ("production-reachable", "Trace callers"),
-    "frontload-core": ("model-visible payload", "index freshness", "savings"),
-    "frontload-integration": ("CLI and MCP", "repository boundary", "unrelated user configuration"),
     "garmin-ciq": ("Connect IQ", "SDK"),
     "guidelines": ("exact violated rule", "Do not invent"),
     "springa-api": ("backward-incompatible", "Nightscout"),
+    "springa-native-integration": ("Bearer", "backend-owned", "TanStack Query"),
+    "springa-native-ui": ("Expo", "React Native", "iOS", "Android"),
     "springa-react": ("Next.js", "Loading"),
     "strimma-coroutine": ("process death", "DataStore"),
     "strimma-medical": ("18.0182", "temporal correctness"),
@@ -146,10 +146,10 @@ def validate_domain_reviewer_wiring(text: str, skill_path: Path, errors: list[st
     normalized_domain_section = re.sub(r"\s+", " ", domain_section)
     for marker in (
         'basename of the git repository root',
-        "**Strimma** — basename contains `Strimma`",
-        "**Springa** — basename contains `Springa`",
+        "**Strimma** — lowercased basename contains `strimma`",
+        "**Springa** — lowercased basename is `springa`",
         "**Garmin/Connect IQ** — basename contains `garmin`",
-        "**Frontload** — basename is `frontload`",
+        "**Springa Native** — lowercased basename is `springa-native`",
         "**Agent Plugins** — repo contains `.agents/plugins/marketplace.json`",
         "root `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` manifests",
         "Domain reviewers run at Standard and Deep, never Quick.",
@@ -403,6 +403,7 @@ def validate_reviewer_surface_parity(
     errors: list[str],
     expected_reviewers: set[str] | None = None,
     cursor_reviewers: set[str] | None = None,
+    antigravity_reviewers: set[str] | None = None,
 ) -> None:
     surfaces: list[tuple[str, set[str]]] = [
         ("Codex reviewer prompts", codex_reviewers),
@@ -411,6 +412,8 @@ def validate_reviewer_surface_parity(
     ]
     if cursor_reviewers is not None:
         surfaces.append(("Cursor reviewer roles", cursor_reviewers))
+    if antigravity_reviewers is not None:
+        surfaces.append(("Antigravity reviewer roles", antigravity_reviewers))
     expected = expected_reviewers or set().union(*(reviewers for _, reviewers in surfaces))
     for label, reviewers in surfaces:
         missing = sorted(expected - reviewers)
@@ -434,6 +437,7 @@ def validate_cross_platform_reviewer_parity(errors: list[str]) -> None:
         claude_reviewers=reviewer_names_in(PLUGIN_ROOT / "agents"),
         opencode_reviewers=reviewer_names_in(PLUGIN_ROOT / "opencode" / "agents", ignored={"reviewer"}),
         cursor_reviewers=reviewer_names_from_adapter(SKILL_ROOT / "references" / "cursor.md"),
+        antigravity_reviewers=reviewer_names_from_adapter(SKILL_ROOT / "references" / "antigravity.md"),
         errors=errors,
         expected_reviewers=set(REVIEWER_NAMES),
     )

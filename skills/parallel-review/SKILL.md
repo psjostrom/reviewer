@@ -97,7 +97,7 @@ Remain read-only.
 
 ### Repository guidance
 
-For every changed file, read every `AGENTS.md` in the directory chain from the repository root through the file's parent directory. Also read every `CLAUDE.md` in that same chain for migration compatibility. Apply guidance broad-to-narrow; nearer files override broader files. When `AGENTS.md` and `CLAUDE.md` conflict at the same scope, follow `AGENTS.md`.
+For every changed file, read every `AGENTS.md` in the directory chain from the repository root through the file's parent directory. Also read every `CLAUDE.md` in that same chain. Apply guidance broad-to-narrow; nearer files override broader files. When `AGENTS.md` and `CLAUDE.md` conflict at the same scope, follow `AGENTS.md`.
 
 ### PR mode
 
@@ -176,13 +176,14 @@ Always state the selected depth, why, the panel, and how the user can override i
 ### Domain reviewers
 
 Detect domain reviewers from repository identity and project manifests, not
-arbitrary changed-text mentions. Use the basename of the git repository root
-(`basename "$(git rev-parse --show-toplevel)"`) plus root manifests as specified:
+arbitrary changed-text mentions. Lowercase the basename of the git repository
+root (`basename "$(git rev-parse --show-toplevel)"`) before matching it, and use
+root manifests as specified:
 
-- **Strimma** — basename contains `Strimma` (case-sensitive contains match). Dispatch `strimma-coroutine.md` and `strimma-medical.md`.
-- **Springa** — basename contains `Springa`. Dispatch `springa-api.md` and `springa-react.md`.
+- **Strimma** — lowercased basename contains `strimma`. Dispatch `strimma-coroutine.md` and `strimma-medical.md`.
+- **Springa** — lowercased basename is `springa`. Dispatch `springa-api.md` and `springa-react.md`.
+- **Springa Native** — lowercased basename is `springa-native`. Dispatch `springa-native-ui.md` and `springa-native-integration.md`.
 - **Garmin/Connect IQ** — basename contains `garmin`. Dispatch `garmin-ciq.md`.
-- **Frontload** — basename is `frontload`, or a root package manifest identifies the project as `frontload`. Dispatch `frontload-core.md` and `frontload-integration.md`.
 - **Agent Plugins** — repo contains `.agents/plugins/marketplace.json` (thin catalog), or root `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` manifests (standalone plugin). Dispatch `agent-plugins.md`.
 - **Generic** — anything else. No domain reviewer.
 

@@ -65,9 +65,9 @@ Also include mode/target, summary, tiered files, guidance, and patch or retrieva
 | Strimma Medical Data Integrity | `strimma-medical` | `strimma-medical.md` |
 | Springa API Contract & Schema | `springa-api` | `springa-api.md` |
 | Springa React & Next.js Patterns | `springa-react` | `springa-react.md` |
+| Springa Native UI & Platform | `springa-native-ui` | `springa-native-ui.md` |
+| Springa Native Integration | `springa-native-integration` | `springa-native-integration.md` |
 | Garmin/Connect IQ | `garmin-ciq` | `garmin-ciq.md` |
-| Frontload Core Correctness | `frontload-core` | `frontload-core.md` |
-| Frontload Integration & Safety | `frontload-integration` | `frontload-integration.md` |
 | Agent Plugins Surface Parity | `agent-plugins` | `agent-plugins.md` |
 
 Launch every selected reviewer in one parallel batch. Do not introduce Claude plugin prefixes or Codex skill syntax into opencode dispatch.

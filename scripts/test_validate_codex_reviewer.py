@@ -33,11 +33,28 @@ class DomainReviewerWiringTests(unittest.TestCase):
         VALIDATOR.validate_domain_reviewer_wiring(text, self.skill_path, errors)
         return errors
 
-    def test_accepts_active_frontload_mapping_and_panel_wiring(self) -> None:
+    def test_accepts_active_springa_native_mapping_and_panel_wiring(self) -> None:
         self.assertEqual(self.validate(self.skill_text), [])
 
+    def test_rejects_ambiguous_springa_family_detection(self) -> None:
+        text = self.skill_text.replace(
+            "**Springa** — lowercased basename is `springa`",
+            "**Springa** — lowercased basename contains `springa`",
+        )
+        self.assertTrue(self.validate(text))
+
+    def test_rejects_missing_springa_native_detection(self) -> None:
+        text = self.skill_text.replace(
+            "**Springa Native** — lowercased basename is `springa-native`",
+            "**Springa Native** — omitted",
+        )
+        self.assertTrue(self.validate(text))
+
     def test_rejects_missing_strimma_detection(self) -> None:
-        text = self.skill_text.replace("**Strimma** — basename contains `Strimma`", "**Strimma** — omitted")
+        text = self.skill_text.replace(
+            "**Strimma** — lowercased basename contains `strimma`",
+            "**Strimma** — omitted",
+        )
         self.assertTrue(self.validate(text))
 
     def test_rejects_standard_panel_without_matching_domain_reviewers(self) -> None:
@@ -63,39 +80,56 @@ class ReviewerParityTests(unittest.TestCase):
     def test_rejects_reviewer_missing_from_claude_surface(self) -> None:
         errors: list[str] = []
         VALIDATOR.validate_reviewer_surface_parity(
-            codex_reviewers={"bug-hunter", "frontload-core"},
+            codex_reviewers={"bug-hunter", "springa-native-ui"},
             claude_reviewers={"bug-hunter"},
-            opencode_reviewers={"bug-hunter", "frontload-core"},
-            cursor_reviewers={"bug-hunter", "frontload-core"},
+            opencode_reviewers={"bug-hunter", "springa-native-ui"},
+            cursor_reviewers={"bug-hunter", "springa-native-ui"},
             errors=errors,
         )
 
-        self.assertIn("missing Claude reviewer agents: frontload-core", errors)
+        self.assertIn("missing Claude reviewer agents: springa-native-ui", errors)
 
     def test_rejects_reviewer_missing_from_opencode_surface(self) -> None:
         errors: list[str] = []
         VALIDATOR.validate_reviewer_surface_parity(
-            codex_reviewers={"bug-hunter", "frontload-core"},
-            claude_reviewers={"bug-hunter", "frontload-core"},
+            codex_reviewers={"bug-hunter", "springa-native-ui"},
+            claude_reviewers={"bug-hunter", "springa-native-ui"},
             opencode_reviewers={"bug-hunter"},
-            cursor_reviewers={"bug-hunter", "frontload-core"},
+            cursor_reviewers={"bug-hunter", "springa-native-ui"},
             errors=errors,
         )
 
-        self.assertIn("missing opencode reviewer agents: frontload-core", errors)
+        self.assertIn("missing opencode reviewer agents: springa-native-ui", errors)
 
     def test_rejects_reviewer_missing_from_cursor_surface(self) -> None:
         errors: list[str] = []
         VALIDATOR.validate_reviewer_surface_parity(
-            codex_reviewers={"bug-hunter", "frontload-core"},
-            claude_reviewers={"bug-hunter", "frontload-core"},
-            opencode_reviewers={"bug-hunter", "frontload-core"},
+            codex_reviewers={"bug-hunter", "springa-native-ui"},
+            claude_reviewers={"bug-hunter", "springa-native-ui"},
+            opencode_reviewers={"bug-hunter", "springa-native-ui"},
             cursor_reviewers={"bug-hunter"},
             errors=errors,
-            expected_reviewers={"bug-hunter", "frontload-core"},
+            expected_reviewers={"bug-hunter", "springa-native-ui"},
         )
 
-        self.assertIn("missing Cursor reviewer roles: frontload-core", errors)
+        self.assertIn("missing Cursor reviewer roles: springa-native-ui", errors)
+
+    def test_rejects_springa_native_reviewers_missing_from_antigravity_surface(self) -> None:
+        errors: list[str] = []
+        VALIDATOR.validate_reviewer_surface_parity(
+            codex_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            claude_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            opencode_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            cursor_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+            antigravity_reviewers={"bug-hunter"},
+            errors=errors,
+            expected_reviewers={"bug-hunter", "springa-native-integration", "springa-native-ui"},
+        )
+
+        self.assertIn(
+            "missing Antigravity reviewer roles: springa-native-integration, springa-native-ui",
+            errors,
+        )
 
 
 class SharedCoreTests(unittest.TestCase):
