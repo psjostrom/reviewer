@@ -18,6 +18,7 @@ LEGACY_SKILL_ROOT = PLUGIN_ROOT / "skills" / "review-pr"
 CURSOR_MANIFEST = PLUGIN_ROOT / ".cursor-plugin" / "plugin.json"
 ANTIGRAVITY_MANIFEST = PLUGIN_ROOT / "plugin.json"
 INSTALL_OPENCODE = PLUGIN_ROOT / "install-opencode.sh"
+REVIEW_STATE = PLUGIN_ROOT / "scripts" / "review_state.py"
 
 HARNESS_REFS = ("codex.md", "cursor.md", "claude-code.md", "opencode.md", "antigravity.md")
 MAX_SHELL_BODY_CHARS = 1200
@@ -34,6 +35,7 @@ REQUIRED_PATHS = (
     SKILL_ROOT / "references" / "scoring.md",
     SKILL_ROOT / "references" / "github-actions.md",
     INSTALL_OPENCODE,
+    REVIEW_STATE,
     OPENCODE_SKILLS_LINK,
     *tuple(SKILL_ROOT / "references" / name for name in HARNESS_REFS),
 )
@@ -132,9 +134,9 @@ def require_in_order(text: str, markers: tuple[str, ...], path: Path, label: str
 
 def validate_domain_reviewer_wiring(text: str, skill_path: Path, errors: list[str]) -> None:
     domain_heading = "### Domain reviewers"
-    dispatch_heading = "## 6. Dispatch parallel reviewers"
     domain_start = text.find(domain_heading)
-    dispatch_start = text.find(dispatch_heading, domain_start + len(domain_heading))
+    dispatch_match = re.search(r"^## \d+\. Dispatch parallel reviewers$", text[domain_start:], re.MULTILINE)
+    dispatch_start = domain_start + dispatch_match.start() if domain_start >= 0 and dispatch_match else -1
     require(domain_start >= 0, f"{skill_path}: missing Domain reviewers section", errors)
     require(dispatch_start > domain_start, f"{skill_path}: Domain reviewers section must precede dispatch", errors)
     if domain_start < 0 or dispatch_start <= domain_start:
@@ -277,12 +279,14 @@ def validate_skill(errors: list[str]) -> None:
         validate_domain_reviewer_wiring(text, skill_path, errors)
         for adapter in HARNESS_REFS:
             require(f"`references/{adapter}`" in text, f"{skill_path}: must reference harness adapter {adapter!r}", errors)
+        normalized_headings = re.sub(r"^## \d+\. ", "## ", text, flags=re.MULTILINE)
         require_in_order(
-            text,
+            normalized_headings,
             (
-                "## 7. Synthesize and score",
+                "## Synthesize and score",
                 "Do not execute PR code during the review phase.",
-                "## 8. Stop at the decision gate",
+                "## Record a completed review",
+                "## Stop at the decision gate",
                 "If the user selects an action",
             ),
             skill_path,
