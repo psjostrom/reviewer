@@ -45,6 +45,9 @@ Before following the shared workflow, parse `$ARGUMENTS`:
 
 - `--opus` → remove it; opencode configures subagent models in `opencode.json`, not per-call flags
 - `--deep` / `--quick` → depth overrides (`--deep` wins if both are present)
+- `--full` → bypass a saved incremental baseline for this run
+- `--since <full SHA>` → use that commit as the incremental baseline for a PR or implicit branch review
+- Treat `--full` and `--since` as mutually exclusive; reject `--since` for local working-tree and explicit base comparisons
 - Remove recognized flags; use the remainder for shared input parsing (PR number/URL, branch/base comparison, or empty for local/current PR)
 
 Then execute the shared workflow end-to-end. Do not duplicate triage tables, scoring rubrics, or posting recipes here.
