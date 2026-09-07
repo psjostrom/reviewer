@@ -66,7 +66,7 @@ agy plugin install .
 
 | Harness | Invocation |
 | --- | --- |
-| Claude Code | `/reviewer:review` or `/r` |
+| Claude Code | `/reviewer:review` |
 | Codex | `$parallel-review` |
 | Cursor | `/parallel-review` |
 | OpenCode | `/parallel-review` |
